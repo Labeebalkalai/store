@@ -2,6 +2,37 @@
 // Amwaj Al-Sayyad ERP - Pro Version 1.4.0
 // ==========================================
 
+// --- Smart Print: يعمل على المتصفح والأندرويد معاً ---
+window.isAndroidWebView = () => {
+    const ua = navigator.userAgent || '';
+    // يكتشف Android WebView عبر user agent
+    return /Android/.test(ua) && (
+        /wv\)/.test(ua) ||                   // WebView مباشر
+        !/Chrome\/\d/.test(ua) ||            // بدون Chrome عادي
+        /Version\/\d+\.\d+ Mobile/.test(ua) // متصفح مدمج قديم
+    );
+};
+
+window.smartPrint = function(elementId, filename) {
+    const isAndroid = window.isAndroidWebView();
+    const printUnavailable = typeof window.print !== 'function';
+
+    if (isAndroid || printUnavailable) {
+        // Android أو بيئة بدون print → توليد PDF مباشرة
+        exportToPDF(elementId, filename);
+    } else {
+        // متصفح عادي → عرض خيار للمستخدم
+        const choice = confirm('اختر طريقة الإخراج:\nموافق = طباعة\nإلغاء = تنزيل PDF');
+        if (choice) {
+            window.print();
+        } else {
+            exportToPDF(elementId, filename);
+        }
+    }
+};
+
+
+
 window.enterSystem = function() {
     const screen = document.getElementById('welcome-screen');
     if(screen) { screen.style.opacity = '0'; screen.style.visibility = 'hidden'; setTimeout(() => screen.remove(), 800); }
@@ -132,7 +163,7 @@ function renderDashboardCommon(container, prefix) {
             <div class="table-header no-print">
                 <h4><i class="fa-solid fa-list-check"></i> سجل العمليات التفصيلي</h4>
                 <div class="header-tools">
-                    <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
+                    <button class="btn btn-primary btn-sm" onclick="smartPrint('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
                 </div>
             </div>
             <table id="${prefix}-table">
@@ -563,7 +594,7 @@ function renderInventory(w) {
             <div class="section-header">
                 <h2>المخزن</h2>
                 <div class="header-tools no-print">
-                    <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
+                    <button class="btn btn-outline" onclick="smartPrint('inventory-content', 'كشف_المخزون')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
                 </div>
             </div>
         <div class="actions-bar no-print">
@@ -656,11 +687,15 @@ window.filterInv = () => {
 
 window.exportToPDF = async (elementId, filename) => {
     const element = document.getElementById(elementId);
+    if (!element) return showNotification('لم يتم العثور على المحتوى!', 'error');
+
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const safeFilename = `${filename}_${safeDate}.pdf`;
+
     const opt = {
         margin: 10,
-        filename: `${filename}_${safeDate}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        filename: safeFilename,
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
             scale: 2, 
             useCORS: true, 
@@ -674,13 +709,13 @@ window.exportToPDF = async (elementId, filename) => {
     
     showNotification('جاري تجهيز ملف PDF...', 'info');
     
+    // إظهار رأس الطباعة
     const header = element.querySelector('.print-header');
-    if(header) header.style.display = 'flex';
+    if (header) header.style.display = 'flex';
 
-    // Anti-Taint Canvas Fix: Use pre-loaded Base64 Logo
+    // استخدام اللوغو Base64 لتجنب مشكلة CORS
     const img = header ? header.querySelector('img') : null;
     let originalSrc = '';
-    
     if (img && typeof LOGO_BASE64 !== 'undefined') {
         originalSrc = img.src;
         img.src = LOGO_BASE64;
@@ -688,19 +723,44 @@ window.exportToPDF = async (elementId, filename) => {
 
     element.classList.add('pdf-mode');
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    const resetElement = () => {
         element.classList.remove('pdf-mode');
-        if(header) header.style.display = ''; // Reset
-        if(img && originalSrc) img.src = originalSrc;
-        showNotification('تم تحميل الملف بنجاح');
-    }).catch(err => {
-        console.error(err);
-        element.classList.remove('pdf-mode');
-        if(header) header.style.display = ''; // Reset
-        if(img && originalSrc) img.src = originalSrc;
-        showNotification('خطأ: ' + (err.message || 'حدث خطأ غير معروف'), 'error');
-    });
+        if (header) header.style.display = '';
+        if (img && originalSrc) img.src = originalSrc;
+    };
+
+    try {
+        if (window.isAndroidWebView && window.isAndroidWebView()) {
+            // Android WebView: توليد blob وفتحه
+            const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+            resetElement();
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            // محاولة الفتح في نافذة جديدة
+            const opened = window.open(blobUrl, '_blank');
+            if (!opened) {
+                // إذا فشل الفتح → تحميل مباشر
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = safeFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+            }
+            showNotification('تم إنشاء ملف PDF بنجاح ✓');
+        } else {
+            // متصفح عادي: حفظ مباشر
+            await html2pdf().set(opt).from(element).save();
+            resetElement();
+            showNotification('تم تحميل ملف PDF بنجاح ✓');
+        }
+    } catch (err) {
+        console.error('PDF Error:', err);
+        resetElement();
+        showNotification('خطأ في إنشاء PDF: ' + (err.message || 'حدث خطأ غير معروف'), 'error');
+    }
 };
+
 
 window.exportToExcel = (tableId, filename) => {
     const table = document.getElementById(tableId);
