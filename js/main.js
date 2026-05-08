@@ -433,12 +433,12 @@ window.showInvPicker = (btn) => {
     overlay.id = 'inv-picker-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
-        <div style="background:#1e293b;border-radius:20px;width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 25px 60px rgba(0,0,0,0.6);">
-            <div style="padding:20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="margin:0;color:#e2e8f0;"><i class="fa-solid fa-boxes-stacked"></i> اختر صنفاً من المخزن</h3>
-                <button onclick="document.getElementById('inv-picker-overlay').remove()" style="background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>
+        <div style="background:#1e293b;border-radius:20px;width:min(420px, 94vw);max-height:min(80vh, 600px);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 25px 60px rgba(0,0,0,0.6);">
+            <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;color:#e2e8f0;font-size:1rem;"><i class="fa-solid fa-boxes-stacked"></i> اختر صنفاً من المخزن</h3>
+                <button onclick="document.getElementById('inv-picker-overlay').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#e2e8f0;font-size:1.3rem;cursor:pointer;line-height:1;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;">&#x00D7;</button>
             </div>
-            <div style="padding:15px;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div style="padding:12px 15px;border-bottom:1px solid rgba(255,255,255,0.08);">
                 <input type="text" id="picker-search" class="form-control" placeholder="ابحث عن صنف..." oninput="filterPicker(this.value)" style="width:100%;">
             </div>
             <div id="picker-list" style="overflow-y:auto;flex:1;">${listHtml}</div>
@@ -955,7 +955,7 @@ window.delItem = async (key) => {
 function renderSettings(container) {
     container.innerHTML = `
         <div class="section-header"><h2><i class="fa-solid fa-gear"></i> الإعدادات</h2></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:800px; margin:0 auto;">
+        <div class="settings-grid">
 
             <div class="table-container" style="padding:30px;">
                 <h3><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> حد تنبيه النواقص</h3>
