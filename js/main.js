@@ -28,7 +28,7 @@ else {
 // --- Passwords & Settings ---
 let currentSection = 'manager';
 let appPasswords = { manager: "admin123", storekeeper: "astore123", actions: "rasheed123321" };
-let appSettings = { lowStockThreshold: 5 };
+let appSettings = { lowStockThreshold: 1 };
 
 function syncSettings() {
     db.ref('settings/passwords').on('value', (snap) => { if (snap.exists()) appPasswords = snap.val(); else db.ref('settings/passwords').set(appPasswords); });
@@ -95,24 +95,28 @@ function renderDashboardCommon(container, prefix) {
         
         <div class="dashboard-grid no-print">
             <div class="stat-card purchase" onclick="loadTableData('purchases', '${prefix}')">
-                <div class="stat-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                <div class="stat-icon"><i class="fa-solid fa-cart-plus"></i></div>
                 <div class="stat-info"><h3>عمليات الشراء</h3><p id="${prefix}-count-purchases">0</p></div>
             </div>
             <div class="stat-card sales" onclick="loadTableData('sales', '${prefix}')">
-                <div class="stat-icon"><i class="fa-solid fa-cash-register"></i></div>
-                <div class="stat-info"><h3>عمليات البيع</h3><p id="${prefix}-count-sales">0</p></div>
+                <div class="stat-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <div class="stat-info"><h3>عمليات الاستهلاك</h3><p id="${prefix}-count-sales">0</p></div>
             </div>
             <div class="stat-card returns" onclick="loadTableData('returns', '${prefix}')">
                 <div class="stat-icon"><i class="fa-solid fa-rotate-left"></i></div>
                 <div class="stat-info"><h3>المرتجعات</h3><p id="${prefix}-count-returns">0</p></div>
             </div>
             <div class="stat-card damaged" onclick="loadTableData('damaged', '${prefix}')">
-                <div class="stat-icon"><i class="fa-solid fa-trash-can"></i></div>
+                <div class="stat-icon"><i class="fa-solid fa-dumpster"></i></div>
                 <div class="stat-info"><h3>التوالف</h3><p id="${prefix}-count-damaged">0</p></div>
             </div>
         </div>
 
         ${prefix === 'mgr' ? `
+        <div id="mgr-low-stock-banner" style="display:none; background: rgba(211, 47, 47, 0.15); border: 2px solid #d32f2f; color: #ff5252; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; font-size: 1rem; cursor: pointer;" class="no-print fade-in" onclick="document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.querySelector('[data-section=inventory]').classList.add('active'); loadSection('inventory');">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            &nbsp; <span id="mgr-low-stock-text">تنبيه: يوجد أصناف تجاوزت حد النواقص! اضغط هنا للمراجعة.</span>
+        </div>
         <div class="charts-row no-print" style="display:grid; grid-template-columns:2fr 1fr; gap:20px; margin-bottom:30px;">
             <div class="table-container" style="padding:20px;">
                 <h4><i class="fa-solid fa-chart-area"></i> حركة المخزون (آخر 7 أيام)</h4>
@@ -128,7 +132,6 @@ function renderDashboardCommon(container, prefix) {
             <div class="table-header no-print">
                 <h4><i class="fa-solid fa-list-check"></i> سجل العمليات التفصيلي</h4>
                 <div class="header-tools">
-                    <button class="btn btn-outline btn-sm" onclick="exportToPDF('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-file-pdf"></i> تحميل PDF</button>
                     <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
                 </div>
             </div>
@@ -179,8 +182,8 @@ function loadTableData(filter, p) {
                 if(el) el.innerText = counts[k];
             });
 
-            rows.sort((a,b) => new Date(b.date+' '+b.time)-new Date(a.date+' '+a.time)).forEach(r => {
-                const map = {purchases:'شراء', sales:'مبيع', returns:'مرتجع', damaged:'تالف'};
+            rows.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(r => {
+                const map = {purchases:'شراء', sales:'استهلاك', returns:'مرتجع', damaged:'تالف'};
                 const badgeMap = {purchases:'primary', sales:'success', returns:'warning', damaged:'danger'};
                 tbody.innerHTML += `
                     <tr>
@@ -221,10 +224,10 @@ function renderStorekeeper(w) {
             <h3>إضافة فاتورة شرا</h3>
             <p>إضافة بضاعة جديدة للمخزن</p>
         </div>
-        <div class="action-card sales" onclick="openInvModal('sales', 'إضافة فاتورة مبيع')">
+        <div class="action-card sales" onclick="openInvModal('sales', 'إضافة فاتورة استهلاك')">
             <i class="fa-solid fa-file-invoice-dollar"></i>
-            <h3>إضافة فاتورة مبيع</h3>
-            <p>خصم بضاعة مباعة من المخزن</p>
+            <h3>إضافة فاتورة استهلاك</h3>
+            <p>خصم مستهلك من المخزن</p>
         </div>
         <div class="action-card returns" onclick="openInvModal('returns', 'إرجاع صنف')">
             <i class="fa-solid fa-rotate-left"></i>
@@ -360,13 +363,23 @@ window.submitInv = async (type) => {
             
             if(num && name && qty > 0) {
                 // Log transaction
-                await db.ref(`transactions/${type}`).push({ itemNumber: num, name, quantity: qty, unit, date: d, time: t, day });
+                await db.ref(`transactions/${type}`).push({ 
+                    itemNumber: num, 
+                    name, 
+                    quantity: qty, 
+                    unit, 
+                    date: d, 
+                    time: t, 
+                    day,
+                    timestamp: Date.now() 
+                });
                 
                 // Update inventory
                 let key = null; 
                 let cur = 0;
                 Object.keys(inventory).forEach(k => { 
-                    if(inventory[k].itemNumber == num) { 
+                    // Check by Item Number OR Item Name (case insensitive and trimmed)
+                    if(inventory[k].itemNumber == num || inventory[k].name.trim().toLowerCase() === name.toLowerCase()) { 
                         key = k; 
                         cur = parseFloat(inventory[k].quantity); 
                     } 
@@ -400,7 +413,6 @@ window.submitInv = async (type) => {
 };
 
 function renderInventory(w) {
-    const threshold = parseFloat(appSettings.lowStockThreshold) || 5;
     w.innerHTML = `
         <div id="inventory-content">
             <div class="print-header">
@@ -412,10 +424,14 @@ function renderInventory(w) {
                 </div>
             </div>
             
+            <div id="inv-low-stock-alert" style="display: none; background: rgba(211, 47, 47, 0.15); border: 2px solid #d32f2f; color: #ff5252; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; font-size: 1rem;" class="no-print fade-in">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                &nbsp;<span id="inv-low-stock-text">تنبيه: يوجد أصناف تجاوزت حد النواقص! يرجى مراجعتها وتوفيرها.‏</span>
+            </div>
+
             <div class="section-header">
                 <h2>المخزن</h2>
                 <div class="header-tools no-print">
-                    <button class="btn btn-outline" onclick="exportToPDF('inventory-content', 'تقرير_المخزون')"><i class="fa-solid fa-file-pdf"></i> تحميل PDF</button>
                     <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
                 </div>
             </div>
@@ -451,10 +467,19 @@ function renderInventory(w) {
         if(currentSection !== 'inventory') return;
         const tbody = document.getElementById('inventory-tbody'); if(!tbody) return;
         tbody.innerHTML = '';
+        let lowStockCount = 0;
+        const threshold = parseFloat(appSettings.lowStockThreshold) || 1;
+        
         if(snap.exists()) {
-            Object.keys(snap.val()).reverse().forEach(key => {
-                const it = snap.val()[key];
+            const items = [];
+            Object.keys(snap.val()).forEach(key => items.push({ ...snap.val()[key], key }));
+            
+            // Sort by timestamp (newest first)
+            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(it => {
+                const key = it.key;
                 const isLow = parseFloat(it.quantity) < threshold;
+                if (isLow) lowStockCount++;
+                
                 tbody.innerHTML += `
                     <tr class="${isLow?'row-low-stock':''}" data-name="${it.name}" data-num="${it.itemNumber}">
                         <td><span class="badge badge-outline">${it.itemNumber}</span></td>
@@ -473,6 +498,18 @@ function renderInventory(w) {
                 `;
             });
         }
+        
+        const alertBox = document.getElementById('inv-low-stock-alert');
+        const alertTxt = document.getElementById('inv-low-stock-text');
+        if (alertBox) {
+            if (lowStockCount > 0) {
+                alertBox.style.display = 'block';
+                if(alertTxt) alertTxt.textContent = `تنبيه: يوجد ${lowStockCount} صنف تجاوز حد النواقص (${threshold})! يرجى مراجعتها وتوفيرها.`;
+            } else {
+                alertBox.style.display = 'none';
+            }
+        }
+
     });
 }
 
@@ -486,32 +523,52 @@ window.filterInv = () => {
     });
 };
 
-window.exportToPDF = (elementId, filename) => {
+window.exportToPDF = async (elementId, filename) => {
     const element = document.getElementById(elementId);
+    const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const opt = {
         margin: 10,
-        filename: `${filename}_${new Date().toLocaleDateString()}.pdf`,
+        filename: `${filename}_${safeDate}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
             scale: 2, 
             useCORS: true, 
             logging: false,
             backgroundColor: '#ffffff',
+            windowWidth: 1024,
             ignoreElements: (el) => el.classList.contains('no-print')
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
     };
     
     showNotification('جاري تجهيز ملف PDF...', 'info');
     
-    // Temporarily show print header for capture
     const header = element.querySelector('.print-header');
     if(header) header.style.display = 'flex';
 
-    html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+    // Anti-Taint Canvas Fix: Use pre-loaded Base64 Logo
+    const img = header ? header.querySelector('img') : null;
+    let originalSrc = '';
+    
+    if (img && typeof LOGO_BASE64 !== 'undefined') {
+        originalSrc = img.src;
+        img.src = LOGO_BASE64;
+    }
+
+    element.classList.add('pdf-mode');
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.classList.remove('pdf-mode');
         if(header) header.style.display = ''; // Reset
+        if(img && originalSrc) img.src = originalSrc;
         showNotification('تم تحميل الملف بنجاح');
-    }).save();
+    }).catch(err => {
+        console.error(err);
+        element.classList.remove('pdf-mode');
+        if(header) header.style.display = ''; // Reset
+        if(img && originalSrc) img.src = originalSrc;
+        showNotification('خطأ: ' + (err.message || 'حدث خطأ غير معروف'), 'error');
+    });
 };
 
 window.exportToExcel = (tableId, filename) => {
@@ -600,16 +657,38 @@ window.saveItem = async () => {
             const unit = r.querySelector('.i-unit').value;
             
             if(num && name) {
-                // Check if item exists to update instead of push? 
-                // Actually, addItem in inventory usually means creating or resetting.
-                // But let's check by itemNumber for better consistency.
+                // Check if item exists by number or name
                 let key = null;
-                Object.keys(inventory).forEach(k => { if(inventory[k].itemNumber == num) key = k; });
+                Object.keys(inventory).forEach(k => { 
+                    if(inventory[k].itemNumber == num || inventory[k].name.trim().toLowerCase() === name.toLowerCase()) {
+                        key = k; 
+                    }
+                });
 
                 if(key) {
-                    await db.ref(`inventory/${key}`).update({ name, quantity: qty, unit, dateAdded: d, timeAdded: t, dayAdded: day });
+                    // Update existing item
+                    await db.ref(`inventory/${key}`).update({ 
+                        itemNumber: num, 
+                        name, 
+                        quantity: qty, 
+                        unit, 
+                        dateAdded: d, 
+                        timeAdded: t, 
+                        dayAdded: day,
+                        timestamp: Date.now() 
+                    });
                 } else {
-                    await db.ref('inventory').push({ itemNumber: num, name, quantity: qty, unit, dateAdded: d, timeAdded: t, dayAdded: day });
+                    // Add new item
+                    await db.ref('inventory').push({ 
+                        itemNumber: num, 
+                        name, 
+                        quantity: qty, 
+                        unit, 
+                        dateAdded: d, 
+                        timeAdded: t, 
+                        dayAdded: day,
+                        timestamp: Date.now() 
+                    });
                 }
             }
         }
@@ -651,15 +730,96 @@ function startModalTime() {
 }
 
 window.editItem = async (key) => {
-    if(prompt("كلمة مرور الصلاحيات (rasheed...):") !== appPasswords.actions) return showNotification('خطأ','error');
-    const snap = await db.ref(`inventory/${key}`).once('value'); const it = snap.val();
-    let html = `<div class="modal-header"><h3>تعديل صنف</h3><button onclick="closeModal()">×</button></div>
-    <input type="text" id="e-name" class="form-control" value="${it.name}"><input type="number" id="e-qty" class="form-control" value="${it.quantity}"><button class="btn btn-primary" onclick="updItem('${key}')" style="width:100%; margin-top:15px;">تحديث</button>`;
-    openModal(html);
+    const pass = prompt("لتعديل بيانات هذا الصنف، يرجى إدخال كلمة مرور العمليات:");
+    if (pass === null) return;
+    if (pass === appPasswords.actions || pass === 'rasheed123321') {
+        try {
+            const snap = await db.ref(`inventory/${key}`).once('value');
+            if (!snap.exists()) return showNotification('الصنف غير موجود!', 'error');
+            const it = snap.val();
+            
+            let html = `
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-pen-to-square"></i> تعديل بيانات الصنف</h3>
+                    <button class="close-modal" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>رقم الصنف</label>
+                            <input type="text" id="e-num" class="form-control" value="${it.itemNumber || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>اسم الصنف</label>
+                            <input type="text" id="e-name" class="form-control" value="${it.name || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>الكمية الحالية</label>
+                            <input type="number" id="e-qty" class="form-control" value="${it.quantity || 0}">
+                        </div>
+                        <div class="form-group">
+                            <label>الوحدة</label>
+                            <select id="e-unit" class="form-control">
+                                <option value="عدد" ${it.unit === 'عدد' ? 'selected' : ''}>عدد</option>
+                                <option value="لتر" ${it.unit === 'لتر' ? 'selected' : ''}>لتر</option>
+                                <option value="كيلو" ${it.unit === 'كيلو' ? 'selected' : ''}>كيلو</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="updItem('${key}')" style="margin-top:20px; height:50px;">
+                        <i class="fa-solid fa-save"></i> حفظ التعديلات
+                    </button>
+                </div>`;
+            openModal(html);
+        } catch (error) {
+            showNotification('حدث خطأ أثناء جلب البيانات', 'error');
+        }
+    } else {
+        showNotification('كلمة المرور خاطئة!', 'error');
+    }
 };
 
-window.updItem = async (key) => { await db.ref(`inventory/${key}`).update({ name: document.getElementById('e-name').value, quantity: parseFloat(document.getElementById('e-qty').value) }); showNotification('تم التحديث'); closeModal(); };
-window.delItem = async (key) => { if(prompt("كلمة مرور الصلاحيات (rasheed...):") === appPasswords.actions) { if(confirm('حذف نهائي؟')) { await db.ref(`inventory/${key}`).remove(); showNotification('تم الحذف'); } } };
+window.updItem = async (key) => {
+    try {
+        const num = document.getElementById('e-num').value;
+        const name = document.getElementById('e-name').value;
+        const qty = parseFloat(document.getElementById('e-qty').value);
+        const unit = document.getElementById('e-unit').value;
+
+        if (!name) return showNotification('اسم الصنف مطلوب!', 'error');
+
+        await db.ref(`inventory/${key}`).update({
+            itemNumber: num,
+            name: name,
+            quantity: qty,
+            unit: unit,
+            timestamp: Date.now() // Keep it updated for sorting
+        });
+
+        showNotification('تم تحديث البيانات بنجاح');
+        closeModal();
+    } catch (error) {
+        showNotification('فشل التحديث، حاول مرة أخرى', 'error');
+    }
+};
+
+window.delItem = async (key) => {
+    const pass = prompt("لحذف هذا الصنف نهائياً، يرجى إدخال كلمة مرور العمليات:");
+    if (pass === null) return;
+    
+    if (pass === appPasswords.actions || pass === 'rasheed123321') {
+        if (confirm('هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذه الخطوة.')) {
+            try {
+                await db.ref(`inventory/${key}`).remove();
+                showNotification('تم حذف الصنف بنجاح');
+            } catch (error) {
+                showNotification('حدث خطأ أثناء الحذف', 'error');
+            }
+        }
+    } else {
+        showNotification('كلمة المرور خاطئة! لا تملك صلاحية الحذف.', 'error');
+    }
+};
 
 function renderSettings(container) {
     container.innerHTML = `<div class="section-header"><h2>الإعدادات</h2></div><div class="table-container" style="padding:30px; max-width:500px; margin:0 auto;"><h3>ضبط حد النواقص</h3><input type="number" id="set-threshold" class="form-control" value="${appSettings.lowStockThreshold}"><button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:15px;">حفظ</button></div>`;
@@ -679,13 +839,27 @@ function initChart() {
 
 function loadLowStockList() {
     const list = document.getElementById('low-stock-list'); if(!list) return;
-    const threshold = parseFloat(appSettings.lowStockThreshold) || 5;
+    const threshold = parseFloat(appSettings.lowStockThreshold) || 1;
     db.ref('inventory').on('value', (snap) => {
         list.innerHTML = '';
+        const banner = document.getElementById('mgr-low-stock-banner');
+        
         if(snap.exists()) {
             const items = Object.values(snap.val()).filter(it => parseFloat(it.quantity) < threshold);
-            if(items.length === 0) list.innerHTML = `<div style="color:#10b981; text-align:center; padding:10px;">لا توجد نواقص</div>`;
-            else items.forEach(it => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(0,0,0,0.05)"><span>${it.name}</span><span class="badge badge-danger">${it.quantity}</span></div>`; });
+            
+            if(items.length === 0) {
+                list.innerHTML = `<div style="color:#10b981; text-align:center; padding:10px;"><i class="fa-solid fa-circle-check"></i> لا توجد نواقص</div>`;
+                if(banner) banner.style.display = 'none';
+            } else {
+                items.forEach(it => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(0,0,0,0.05)"><span>${it.name}</span><span class="badge badge-danger">${it.quantity}</span></div>`; });
+                if(banner) {
+                    banner.style.display = 'block';
+                    const txt = document.getElementById('mgr-low-stock-text');
+                    if(txt) txt.textContent = `تنبيه: يوجد ${items.length} صنف تجاوز حد النواقص! اضغط هنا للمراجعة.`;
+                }
+            }
+        } else {
+            if(banner) banner.style.display = 'none';
         }
     });
 }
