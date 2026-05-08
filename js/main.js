@@ -243,7 +243,15 @@ function renderStorekeeper(w) {
     renderDashboardCommon(w, 'sk');
 }
 
-window.openInvModal = (type, title) => {
+let _cachedInvItems = [];
+
+window.openInvModal = async (type, title) => {
+    // Preload inventory before opening modal
+    try {
+        const snap = await db.ref('inventory').once('value');
+        _cachedInvItems = snap.exists() ? Object.values(snap.val()) : [];
+    } catch(e) { _cachedInvItems = []; }
+
     let html = `
     <div class="modal-header">
         <h3><i class="fa-solid fa-file-signature"></i> ${title}</h3>
@@ -275,7 +283,10 @@ window.openInvModal = (type, title) => {
                     <tr class="inv-row">
                         <td><input type="text" class="form-control i-num" placeholder="001" onchange="autoFillRow(this)"></td>
                         <td style="position:relative;">
-                            <input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off">
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off" style="flex:1;">
+                                <button type="button" class="btn btn-outline btn-sm" onclick="showInvPicker(this)" title="اختر من المخزن" style="padding:6px 10px; flex-shrink:0;"><i class="fa-solid fa-list"></i></button>
+                            </div>
                             <div class="name-suggestions" style="display:none;"></div>
                         </td>
                         <td><input type="number" class="form-control i-qty" value="1" min="0.1" step="0.1"></td>
@@ -310,7 +321,13 @@ window.addInvRow = (isInventory = false) => {
     r.className = 'inv-row';
     r.innerHTML = `
         <td><input type="text" class="form-control i-num" placeholder="001" onchange="autoFillRow(this)"></td>
-        <td style="position:relative;"><input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off"><div class="name-suggestions" style="display:none;"></div></td>
+        <td style="position:relative;">
+            <div style="display:flex; gap:5px; align-items:center;">
+                <input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off" style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="showInvPicker(this)" title="اختر من المخزن" style="padding:6px 10px; flex-shrink:0;"><i class="fa-solid fa-list"></i></button>
+            </div>
+            <div class="name-suggestions" style="display:none;"></div>
+        </td>
         <td><input type="number" class="form-control i-qty" value="${isInventory ? '0' : '1'}" min="0" step="0.1"></td>
         <td>
             <select class="form-control i-unit">
@@ -344,25 +361,15 @@ window.autoFillRow = async (input) => {
 };
 
 
-// --- Inventory Item Autocomplete ---
-let _invCache = null;
-
-async function getInventoryCache() {
-    if (_invCache) return _invCache;
-    const snap = await db.ref('inventory').once('value');
-    _invCache = snap.exists() ? Object.values(snap.val()) : [];
-    setTimeout(() => { _invCache = null; }, 30000);
-    return _invCache;
-}
-
-window.onNameInput = async (input) => {
-    const val = input.value.trim().toLowerCase();
-    const box = input.parentElement.querySelector('.name-suggestions');
+// --- Synchronous Inventory Autocomplete ---
+window.onNameInput = (input) => {
+    const val = input.value.trim();
+    const box = input.nextElementSibling; // Direct reference - more reliable
     if (!box) return;
-    if (!val) { box.style.display = 'none'; return; }
+    if (!val || !_cachedInvItems.length) { box.style.display = 'none'; return; }
 
-    const items = await getInventoryCache();
-    const matches = items.filter(it => it.name && it.name.toLowerCase().includes(val)).slice(0, 7);
+    const lower = val.toLowerCase();
+    const matches = _cachedInvItems.filter(it => it.name && it.name.toLowerCase().includes(lower)).slice(0, 8);
 
     if (!matches.length) { box.style.display = 'none'; return; }
 
@@ -370,29 +377,99 @@ window.onNameInput = async (input) => {
     matches.forEach(it => {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
-        div.dataset.name = it.name;
-        div.dataset.num = it.itemNumber || '';
-        div.dataset.unit = it.unit || 'عدد';
-        div.innerHTML = `<span class="sug-name">${it.name}</span><span class="sug-info">${it.itemNumber ? '#'+it.itemNumber+' &bull; ' : ''}${it.unit||''} &bull; كمية: <b>${it.quantity}</b></span>`;
-        div.addEventListener('mousedown', () => pickItem(div));
+        div.innerHTML = `<span class="sug-name">${it.name}</span><span class="sug-info">${it.itemNumber ? '#'+it.itemNumber+' &bull; ' : ''} ${it.unit||''} &bull; كمية: <b style="color:#10b981">${it.quantity}</b></span>`;
+        div.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            input.value = it.name;
+            const row = input.closest('tr');
+            if (!row) return;
+            const numInput = row.querySelector('.i-num');
+            if (numInput) numInput.value = it.itemNumber || '';
+            const unitSel = row.querySelector('.i-unit');
+            if (unitSel && it.unit) unitSel.value = it.unit;
+            box.style.display = 'none';
+        });
         box.appendChild(div);
     });
     box.style.display = 'block';
-    input.onblur = () => setTimeout(() => { box.style.display = 'none'; }, 200);
 };
 
-window.pickItem = (el) => {
-    const row = el.closest('tr');
-    if (!row) return;
-    row.querySelector('.i-name').value = el.dataset.name;
-    const numInput = row.querySelector('.i-num');
-    if (numInput) numInput.value = el.dataset.num || '';
-    const unitSel = row.querySelector('.i-unit');
-    if (unitSel) unitSel.value = el.dataset.unit || 'عدد';
-    el.parentElement.style.display = 'none';
-};
+document.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('i-name')) {
+        document.querySelectorAll('.name-suggestions').forEach(b => b.style.display = 'none');
+    }
+});
 
 window.showNameSuggestions = window.onNameInput;
+
+// --- Inventory Picker Modal ---
+window.showInvPicker = (btn) => {
+    const row = btn.closest('tr');
+    if (!row) return;
+
+    const items = _cachedInvItems;
+    if (!items || !items.length) {
+        showNotification('لا توجد أصناف في المخزن بعد!', 'error');
+        return;
+    }
+
+    // Build picker HTML
+    let listHtml = items.map((it, idx) => `
+        <div class="inv-picker-item" onclick="applyPickerItem(${idx})" style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background 0.15s;" onmouseover="this.style.background='rgba(79,70,229,0.2)'" onmouseout="this.style.background=''">
+            <div>
+                <div style="font-weight:600; color:#e2e8f0;">${it.name}</div>
+                <div style="font-size:0.8rem; color:#64748b;">${it.itemNumber ? '#'+it.itemNumber : ''} &bull; ${it.unit||''}</div>
+            </div>
+            <span style="background:${parseFloat(it.quantity)<(appSettings.lowStockThreshold||1)?'#7f1d1d':'rgba(16,185,129,0.15)'}; color:${parseFloat(it.quantity)<(appSettings.lowStockThreshold||1)?'#fca5a5':'#10b981'}; padding:4px 12px; border-radius:20px; font-weight:700;">${it.quantity}</span>
+        </div>
+    `).join('');
+
+    // Store current row reference
+    window._pickerTargetRow = row;
+    window._pickerItems = items;
+
+    // Open mini-overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'inv-picker-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#1e293b;border-radius:20px;width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 25px 60px rgba(0,0,0,0.6);">
+            <div style="padding:20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;color:#e2e8f0;"><i class="fa-solid fa-boxes-stacked"></i> اختر صنفاً من المخزن</h3>
+                <button onclick="document.getElementById('inv-picker-overlay').remove()" style="background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:15px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                <input type="text" id="picker-search" class="form-control" placeholder="ابحث عن صنف..." oninput="filterPicker(this.value)" style="width:100%;">
+            </div>
+            <div id="picker-list" style="overflow-y:auto;flex:1;">${listHtml}</div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+    setTimeout(() => document.getElementById('picker-search')?.focus(), 100);
+};
+
+window.filterPicker = (q) => {
+    const lower = q.toLowerCase();
+    const items = window._pickerItems || [];
+    document.querySelectorAll('.inv-picker-item').forEach((el, i) => {
+        const it = items[i];
+        el.style.display = (!q || (it.name && it.name.toLowerCase().includes(lower))) ? '' : 'none';
+    });
+};
+
+window.applyPickerItem = (idx) => {
+    const it = (window._pickerItems || [])[idx];
+    const row = window._pickerTargetRow;
+    if (!it || !row) return;
+    const nameInput = row.querySelector('.i-name');
+    if (nameInput) nameInput.value = it.name;
+    const numInput = row.querySelector('.i-num');
+    if (numInput) numInput.value = it.itemNumber || '';
+    const unitSel = row.querySelector('.i-unit');
+    if (unitSel && it.unit) unitSel.value = it.unit;
+    document.getElementById('inv-picker-overlay')?.remove();
+};
 
 window.submitInv = async (type) => {
     const rows = document.querySelectorAll('.inv-row');
