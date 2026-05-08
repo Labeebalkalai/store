@@ -701,13 +701,12 @@ window.exportToPDF = async (elementId, filename) => {
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
-    // إعدادات خفيفة جداً لمنع الشاشة السوداء في الأندرويد
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
         image: { type: 'jpeg', quality: 0.90 },
         html2canvas: { 
-            scale: isMobile ? 1 : 2, // استخدام مقياس 1 للموبايل لتوفير الذاكرة
+            scale: isMobile ? 1.2 : 2,
             useCORS: true, 
             backgroundColor: '#ffffff',
             removeContainer: true
@@ -715,23 +714,56 @@ window.exportToPDF = async (elementId, filename) => {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    // تفعيل وضع الطباعة على مستوى الجسم بالكامل
     document.body.classList.add('pdf-mode');
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
 
-    showNotification('جاري إنشاء الملف (يرجى الانتظار)...', 'info');
+    showNotification('جاري المعالجة (يرجى الانتظار)...', 'info');
 
-    // تأخير بسيط لضمان تطبيق التنسيقات قبل الالتقاط
     setTimeout(async () => {
         try {
-            await html2pdf().set(opt).from(element).save();
+            const worker = html2pdf().set(opt).from(element);
             
-            setTimeout(() => {
+            if (isMobile) {
+                // للأندرويد: نولد الملف ثم نقرر أفضل طريقة لإظهاره
+                const pdfBlob = await worker.outputPdf('blob');
+                const file = new File([pdfBlob], safeFilename, { type: 'application/pdf' });
+
+                // 1. محاولة استخدام المشاركة (الأكثر أماناً للأندرويد)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'تقرير مطعم أمواج الصياد',
+                            text: 'إليك ملف التقرير'
+                        });
+                        finish();
+                        return;
+                    } catch (e) { console.log('Share cancelled or failed'); }
+                }
+
+                // 2. إذا لم تتوفر المشاركة -> فتح الملف في نافذة جديدة كـ Base64
+                const pdfBase64 = await worker.outputPdf('datauristring');
+                const win = window.open();
+                if (win) {
+                    win.document.write(`<iframe src="${pdfBase64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    finish();
+                } else {
+                    // 3. آخر حل: محاولة الحفظ المباشر
+                    await worker.save();
+                    finish();
+                }
+            } else {
+                await worker.save();
+                finish();
+            }
+
+            function finish() {
                 document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
                 showNotification('تمت العملية بنجاح ✓', 'success');
-            }, 1500);
+            }
+
         } catch (err) {
             console.error('PDF Error:', err);
             document.body.classList.remove('pdf-mode');
