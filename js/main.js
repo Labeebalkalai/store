@@ -706,7 +706,7 @@ window.exportToPDF = async (elementId, filename) => {
         filename: safeFilename,
         image: { type: 'jpeg', quality: 0.90 },
         html2canvas: { 
-            scale: isMobile ? 1.2 : 2,
+            scale: 1.5,
             useCORS: true, 
             backgroundColor: '#ffffff',
             removeContainer: true
@@ -718,59 +718,87 @@ window.exportToPDF = async (elementId, filename) => {
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
 
-    showNotification('جاري المعالجة (يرجى الانتظار)...', 'info');
+    showNotification('جاري تجهيز التقرير...', 'info');
 
     setTimeout(async () => {
         try {
             const worker = html2pdf().set(opt).from(element);
+            const pdfBase64 = await worker.outputPdf('datauristring');
             
             if (isMobile) {
-                // للأندرويد: نولد الملف ثم نقرر أفضل طريقة لإظهاره
-                const pdfBlob = await worker.outputPdf('blob');
-                const file = new File([pdfBlob], safeFilename, { type: 'application/pdf' });
+                // إنشاء نافذة معاينة مع خيار الفتح الخارجي
+                const previewOverlay = document.createElement('div');
+                previewOverlay.id = 'print-preview-overlay';
+                previewOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999999;display:flex;flex-direction:column;direction:rtl;';
+                previewOverlay.innerHTML = `
+                    <div style="padding:15px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            <span style="font-weight:bold;">معاينة التقرير</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button id="external-open-btn" style="padding:8px 12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">
+                                <i class="fa-solid fa-up-right-from-square"></i> فتح خارجي
+                            </button>
+                            <button onclick="document.getElementById('print-preview-overlay').remove(); document.body.classList.remove('pdf-mode');" style="padding:8px 12px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">إغلاق</button>
+                        </div>
+                    </div>
+                    <div style="flex:1; overflow:hidden; position:relative; background:#525659;">
+                        <iframe id="pdf-preview-frame" src="${pdfBase64}" style="width:100%; height:100%; border:none;"></iframe>
+                    </div>
+                    <div style="padding:12px; background:#f8f9fa; text-align:center; border-top:1px solid #ddd; color:#1e293b; font-size:0.85rem;">
+                        <i class="fa-solid fa-circle-info"></i> إذا لم يظهر التقرير، اضغط على "فتح خارجي" لتشغيله في تطبيق الـ PDF بهاتفك.
+                    </div>
+                `;
+                document.body.appendChild(previewOverlay);
 
-                // 1. محاولة استخدام المشاركة (الأكثر أماناً للأندرويد)
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            title: 'تقرير مطعم أمواج الصياد',
-                            text: 'إليك ملف التقرير'
-                        });
-                        finish();
-                        return;
-                    } catch (e) { console.log('Share cancelled or failed'); }
-                }
+                // دالة الفتح الخارجي
+                document.getElementById('external-open-btn').onclick = () => {
+                    const blob = dataURLtoBlob(pdfBase64);
+                    const url = URL.createObjectURL(blob);
+                    
+                    // محاولة 1: فتح رابط blob
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = safeFilename;
+                    a.target = '_blank';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
 
-                // 2. إذا لم تتوفر المشاركة -> فتح الملف في نافذة جديدة كـ Base64
-                const pdfBase64 = await worker.outputPdf('datauristring');
-                const win = window.open();
-                if (win) {
-                    win.document.write(`<iframe src="${pdfBase64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                    finish();
-                } else {
-                    // 3. آخر حل: محاولة الحفظ المباشر
-                    await worker.save();
-                    finish();
-                }
-            } else {
-                await worker.save();
-                finish();
-            }
-
-            function finish() {
+                    // محاولة 2: استخدام المشاركة إذا كانت مدعومة
+                    if (navigator.share) {
+                        const file = new File([blob], safeFilename, { type: 'application/pdf' });
+                        navigator.share({ files: [file] }).catch(() => {});
+                    }
+                };
+                
                 document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
-                showNotification('تمت العملية بنجاح ✓', 'success');
+                showNotification('تم تجهيز التقرير ✓', 'success');
+
+            } else {
+                await worker.save();
+                document.body.classList.remove('pdf-mode');
+                if (header) header.style.display = '';
+                showNotification('تم تحميل الملف بنجاح ✓', 'success');
             }
 
         } catch (err) {
             console.error('PDF Error:', err);
             document.body.classList.remove('pdf-mode');
-            window.print();
+            showNotification('حدث خطأ في المعالجة', 'error');
         }
     }, 500);
 };
+
+// دالة مساعدة لتحويل Base64 إلى Blob
+function dataURLtoBlob(dataurl) {
+    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+    return new Blob([u8arr], {type:mime});
+}
 
 
 window.exportToExcel = (tableId, filename) => {
