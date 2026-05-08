@@ -704,9 +704,9 @@ window.exportToPDF = async (elementId, filename) => {
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.90 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-            scale: 1.5,
+            scale: 2,
             useCORS: true, 
             backgroundColor: '#ffffff',
             removeContainer: true
@@ -718,58 +718,64 @@ window.exportToPDF = async (elementId, filename) => {
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
 
-    showNotification('جاري تجهيز التقرير...', 'info');
+    showNotification('جاري تجهيز صورة التقرير...', 'info');
 
     setTimeout(async () => {
         try {
-            const worker = html2pdf().set(opt).from(element);
-            const pdfBase64 = await worker.outputPdf('datauristring');
+            // توليد الصورة أولاً لأنها الأكثر توافقاً مع الموبايل
+            const canvas = await html2canvas(element, opt.html2canvas);
+            const imgData = canvas.toDataURL('image/png');
             
             if (isMobile) {
-                // إنشاء نافذة معاينة مع خيار الفتح الخارجي
+                // إنشاء نافذة معاينة تعتمد على الصور لضمان الظهور
                 const previewOverlay = document.createElement('div');
                 previewOverlay.id = 'print-preview-overlay';
                 previewOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999999;display:flex;flex-direction:column;direction:rtl;';
                 previewOverlay.innerHTML = `
                     <div style="padding:15px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            <i class="fa-solid fa-image" style="color:#10b981; font-size:1.2rem;"></i>
                             <span style="font-weight:bold;">معاينة التقرير</span>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <button id="external-open-btn" style="padding:8px 12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">
-                                <i class="fa-solid fa-up-right-from-square"></i> فتح خارجي
+                                <i class="fa-solid fa-share-nodes"></i> مشاركة / حفظ
                             </button>
                             <button onclick="document.getElementById('print-preview-overlay').remove(); document.body.classList.remove('pdf-mode');" style="padding:8px 12px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">إغلاق</button>
                         </div>
                     </div>
-                    <div style="flex:1; overflow:hidden; position:relative; background:#525659;">
-                        <iframe id="pdf-preview-frame" src="${pdfBase64}" style="width:100%; height:100%; border:none;"></iframe>
+                    <div style="flex:1; overflow:auto; background:#f0f2f5; padding:10px; display:flex; justify-content:center;">
+                        <img src="${imgData}" style="max-width:100%; height:auto; box-shadow:0 0 20px rgba(0,0,0,0.2); border:1px solid #ddd;">
                     </div>
-                    <div style="padding:12px; background:#f8f9fa; text-align:center; border-top:1px solid #ddd; color:#1e293b; font-size:0.85rem;">
-                        <i class="fa-solid fa-circle-info"></i> إذا لم يظهر التقرير، اضغط على "فتح خارجي" لتشغيله في تطبيق الـ PDF بهاتفك.
+                    <div style="padding:12px; background:#fff; text-align:center; border-top:1px solid #ddd; color:#1e293b; font-size:0.85rem;">
+                        <i class="fa-solid fa-hand-pointer"></i> يمكنك الضغط مطولاً على الصورة لحفظها في الاستوديو.
                     </div>
                 `;
                 document.body.appendChild(previewOverlay);
 
-                // دالة الفتح الخارجي
-                document.getElementById('external-open-btn').onclick = () => {
-                    const blob = dataURLtoBlob(pdfBase64);
-                    const url = URL.createObjectURL(blob);
+                // دالة المشاركة
+                document.getElementById('external-open-btn').onclick = async () => {
+                    const blob = await (await fetch(imgData)).blob();
+                    const file = new File([blob], `${filename}.png`, { type: 'image/png' });
                     
-                    // محاولة 1: فتح رابط blob
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = safeFilename;
-                    a.target = '_blank';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-
-                    // محاولة 2: استخدام المشاركة إذا كانت مدعومة
                     if (navigator.share) {
-                        const file = new File([blob], safeFilename, { type: 'application/pdf' });
-                        navigator.share({ files: [file] }).catch(() => {});
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: 'تقرير مطعم أمواج الصياد'
+                            });
+                        } catch (e) {
+                            // إذا فشلت المشاركة -> محاولة التنزيل التقليدي
+                            const a = document.createElement('a');
+                            a.href = imgData;
+                            a.download = `${filename}.png`;
+                            a.click();
+                        }
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = imgData;
+                        a.download = `${filename}.png`;
+                        a.click();
                     }
                 };
                 
@@ -778,14 +784,15 @@ window.exportToPDF = async (elementId, filename) => {
                 showNotification('تم تجهيز التقرير ✓', 'success');
 
             } else {
-                await worker.save();
+                // للمتصفحات العادية: حفظ كـ PDF كما هو
+                await html2pdf().set(opt).from(element).save();
                 document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
                 showNotification('تم تحميل الملف بنجاح ✓', 'success');
             }
 
         } catch (err) {
-            console.error('PDF Error:', err);
+            console.error('Export Error:', err);
             document.body.classList.remove('pdf-mode');
             showNotification('حدث خطأ في المعالجة', 'error');
         }
