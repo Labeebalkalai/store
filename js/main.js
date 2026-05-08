@@ -689,72 +689,55 @@ window.filterInv = () => {
 
 window.exportToPDF = async (elementId, filename) => {
     const element = document.getElementById(elementId);
-    if (!element) {
-        console.error('Element not found:', elementId);
-        return showNotification('خطأ: لم يتم العثور على محتوى للطباعة', 'error');
-    }
+    if (!element) return showNotification('خطأ: لم يتم العثور على المحتوى', 'error');
 
-    // التحقق من وجود المكتبة
     if (typeof html2pdf === 'undefined') {
-        showNotification('جاري محاولة الطباعة المباشرة...', 'warning');
+        showNotification('جاري الطباعة المباشرة...', 'warning');
         window.print();
         return;
     }
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
-    // إعدادات مخففة لضمان السرعة وعدم الانهيار على الأجهزة الضعيفة
+    // إعدادات خفيفة جداً لمنع الشاشة السوداء في الأندرويد
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.90 },
         html2canvas: { 
-            scale: 1.5, // تقليل الدقة قليلاً لسرعة المعالجة
+            scale: isMobile ? 1 : 2, // استخدام مقياس 1 للموبايل لتوفير الذاكرة
             useCORS: true, 
-            letterRendering: true,
             backgroundColor: '#ffffff',
-            ignoreElements: (el) => el.classList.contains('no-print') || el.tagName === 'BUTTON'
+            removeContainer: true
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    // إعداد الشكل للطباعة
+    // تفعيل وضع الطباعة على مستوى الجسم بالكامل
+    document.body.classList.add('pdf-mode');
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
-    element.classList.add('pdf-mode');
 
-    try {
-        // في أجهزة الموبايل نستخدم المعالجة المباشرة
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    showNotification('جاري إنشاء الملف (يرجى الانتظار)...', 'info');
 
-        if (isMobile) {
-            const worker = html2pdf().set(opt).from(element);
-            
-            // محاولة الحفظ المباشر (تعمل في أغلب المتصفحات الحديثة)
-            await worker.save();
+    // تأخير بسيط لضمان تطبيق التنسيقات قبل الالتقاط
+    setTimeout(async () => {
+        try {
+            await html2pdf().set(opt).from(element).save();
             
             setTimeout(() => {
-                showNotification('تمت العملية بنجاح ✓', 'success');
-                element.classList.remove('pdf-mode');
+                document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
-            }, 1000);
-
-        } else {
-            await html2pdf().set(opt).from(element).save();
-            element.classList.remove('pdf-mode');
-            if (header) header.style.display = '';
-            showNotification('تم تحميل الملف ✓', 'success');
+                showNotification('تمت العملية بنجاح ✓', 'success');
+            }, 1500);
+        } catch (err) {
+            console.error('PDF Error:', err);
+            document.body.classList.remove('pdf-mode');
+            window.print();
         }
-    } catch (err) {
-        console.error('PDF Generation Error:', err);
-        element.classList.remove('pdf-mode');
-        if (header) header.style.display = '';
-        
-        // الملاذ الأخير: الطباعة العادية
-        showNotification('حدث خطأ، محاولة الطباعة التقليدية...', 'warning');
-        window.print();
-    }
+    }, 500);
 };
 
 

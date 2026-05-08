@@ -1061,52 +1061,48 @@ select.form-control {
     }
 
 /* PDF Export Specific Mode (html2canvas compatibility) */
+body.pdf-mode, 
+body.pdf-mode .app-container, 
+body.pdf-mode .main-content, 
+body.pdf-mode .content-wrapper {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
 .pdf-mode * {
     color: black !important;
     text-shadow: none !important;
+    box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
 }
-.pdf-mode {
-    background-color: white !important;
-    color: black !important;
-}
-.pdf-mode table, .pdf-mode th, .pdf-mode td {
-    border-color: #ddd !important;
-    color: black !important;
-    background-color: white !important;
-}
-.pdf-mode th {
-    background-color: #f8f9fa !important;
-    font-weight: bold !important;
-    border: 1px solid #ddd !important;
-}
-.pdf-mode .badge {
-    border: 1px solid #999 !important;
-    color: black !important;
-    background: transparent !important;
-}
-.pdf-mode .row-low-stock td {
-    color: #d32f2f !important;
-}
+
 .pdf-mode .table-container {
-    box-shadow: none !important;
     background: white !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    overflow: visible !important;
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
 }
-.pdf-mode table {
-    width: 100% !important;
-    table-layout: auto !important;
+
+.pdf-mode th {
+    background: #f0f0f0 !important;
+    border: 1px solid #000 !important;
 }
+
 .pdf-mode td {
-    border: 1px solid #ddd !important;
-    padding: 8px !important;
+    border: 1px solid #000 !important;
+    background: white !important;
 }
-.pdf-mode .no-print, .pdf-mode .actions-bar, .pdf-mode .header-tools {
+
+.pdf-mode .no-print, 
+.pdf-mode .sidebar, 
+.pdf-mode .top-header, 
+.pdf-mode .nav-item, 
+.pdf-mode .btn,
+.pdf-mode .header-tools {
     display: none !important;
 }
 
