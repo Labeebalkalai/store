@@ -2,31 +2,35 @@
 // Amwaj Al-Sayyad ERP - Pro Version 1.4.0
 // ==========================================
 
-// --- Smart Print: يعمل على المتصفح والأندرويد معاً ---
-window.isAndroidWebView = () => {
-    const ua = navigator.userAgent || '';
-    // يكتشف Android WebView أو التطبيقات المدمجة
-    const isAndroid = /Android/i.test(ua);
-    const isWebView = /wv|Version\/[\d.]+/i.test(ua) || (isAndroid && !/Chrome\/[\d.]+/i.test(ua));
-    return isAndroid && isWebView;
-};
-
+// --- Smart Print: نظام طباعة موحد يعمل على كافة المنصات ---
 window.smartPrint = function(elementId, filename) {
-    const isAndroid = window.isAndroidWebView();
-    
-    // 1. محاولة استخدام جسر الطباعة إذا كان التطبيق مغلفاً بـ WebView يدعم ذلك
+    // إشعار فوري للمستخدم
+    showNotification('جاري معالجة الطلب...', 'info');
+
+    // 1. فحص وجود جسر برمجى (للتطبيقات المحولة يدوياً)
     if (window.AndroidPrint && typeof window.AndroidPrint.printPage === 'function') {
         window.AndroidPrint.printPage();
         return;
     }
 
-    // 2. إذا كان متصفح عادي (Chrome/Safari) وليس WebView مقيد
-    if (!isAndroid && typeof window.print === 'function') {
-        window.print();
-    } else {
-        // 3. في الأندرويد أو البيئات التي لا تدعم window.print → تحويل لـ PDF
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    // 2. إذا كان جهاز موبايل، نفضل الـ PDF لأنه الأكثر استقراراً في WebView
+    if (isMobile) {
         exportToPDF(elementId, filename);
+    } else {
+        // 3. في المتصفحات العادية، نستخدم الطباعة المباشرة
+        if (typeof window.print === 'function') {
+            window.print();
+        } else {
+            exportToPDF(elementId, filename);
+        }
     }
+};
+
+window.isAndroidWebView = () => {
+    const ua = navigator.userAgent || '';
+    return /Android/i.test(ua) && (/wv|Version\/[\d.]+/i.test(ua) || !/Chrome\/[\d.]+/i.test(ua));
 };
 
 
@@ -685,102 +689,73 @@ window.filterInv = () => {
 
 window.exportToPDF = async (elementId, filename) => {
     const element = document.getElementById(elementId);
-    if (!element) return showNotification('لم يتم العثور على المحتوى!', 'error');
+    if (!element) {
+        console.error('Element not found:', elementId);
+        return showNotification('خطأ: لم يتم العثور على محتوى للطباعة', 'error');
+    }
+
+    // التحقق من وجود المكتبة
+    if (typeof html2pdf === 'undefined') {
+        showNotification('جاري محاولة الطباعة المباشرة...', 'warning');
+        window.print();
+        return;
+    }
 
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
+    // إعدادات مخففة لضمان السرعة وعدم الانهيار على الأجهزة الضعيفة
     const opt = {
-        margin: [10, 5, 10, 5],
+        margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-            scale: 3, 
+            scale: 1.5, // تقليل الدقة قليلاً لسرعة المعالجة
             useCORS: true, 
-            logging: false,
+            letterRendering: true,
             backgroundColor: '#ffffff',
-            windowWidth: 1024,
             ignoreElements: (el) => el.classList.contains('no-print') || el.tagName === 'BUTTON'
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    showNotification('جاري تجهيز المستند...', 'info');
-    
-    // إعداد العناصر للطباعة
+    // إعداد الشكل للطباعة
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
     element.classList.add('pdf-mode');
 
-    // استخدام اللوغو Base64 لتجنب مشكلة CORS
-    const img = header ? header.querySelector('img') : null;
-    let originalSrc = '';
-    if (img && typeof LOGO_BASE64 !== 'undefined') {
-        originalSrc = img.src;
-        img.src = LOGO_BASE64;
-    }
-
-    const resetElement = () => {
-        element.classList.remove('pdf-mode');
-        if (header) header.style.display = '';
-        if (img && originalSrc) img.src = originalSrc;
-    };
-
     try {
-        const isAndroid = window.isAndroidWebView();
+        // في أجهزة الموبايل نستخدم المعالجة المباشرة
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-        if (isAndroid) {
-            // طريقة الأندرويد: توليد الملف ثم محاولة المشاركة أو التحميل
-            const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-            resetElement();
+        if (isMobile) {
+            const worker = html2pdf().set(opt).from(element);
             
-            const file = new File([pdfBlob], safeFilename, { type: 'application/pdf' });
+            // محاولة الحفظ المباشر (تعمل في أغلب المتصفحات الحديثة)
+            await worker.save();
+            
+            setTimeout(() => {
+                showNotification('تمت العملية بنجاح ✓', 'success');
+                element.classList.remove('pdf-mode');
+                if (header) header.style.display = '';
+            }, 1000);
 
-            // محاولة استخدام خاصية المشاركة (الأفضل للأندرويد)
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'تقرير مطعم أمواج الصياد',
-                        text: 'إليك نسخة من التقرير بصيغة PDF'
-                    });
-                    showNotification('تمت المعالجة بنجاح ✓');
-                } catch (shareErr) {
-                    // إذا ألغى المستخدم المشاركة أو فشلت
-                    triggerDownload(pdfBlob, safeFilename);
-                }
-            } else {
-                // إذا لم تتوفر المشاركة -> تحميل مباشر
-                triggerDownload(pdfBlob, safeFilename);
-            }
         } else {
-            // متصفح عادي: حفظ مباشر
             await html2pdf().set(opt).from(element).save();
-            resetElement();
-            showNotification('تم تحميل الملف بنجاح ✓');
+            element.classList.remove('pdf-mode');
+            if (header) header.style.display = '';
+            showNotification('تم تحميل الملف ✓', 'success');
         }
     } catch (err) {
-        console.error('PDF Error:', err);
-        resetElement();
-        showNotification('حدث خطأ في إنشاء الملف', 'error');
+        console.error('PDF Generation Error:', err);
+        element.classList.remove('pdf-mode');
+        if (header) header.style.display = '';
+        
+        // الملاذ الأخير: الطباعة العادية
+        showNotification('حدث خطأ، محاولة الطباعة التقليدية...', 'warning');
+        window.print();
     }
 };
-
-// دالة مساعدة للتحميل تضمن العمل على WebView
-function triggerDownload(blob, name) {
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = name;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-    }, 2000);
-    showNotification('تم إنشاء الملف، تفقد التنزيلات ✓');
-}
 
 
 window.exportToExcel = (tableId, filename) => {
