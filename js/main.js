@@ -701,100 +701,101 @@ window.exportToPDF = async (elementId, filename) => {
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
+    // إعدادات الـ PDF بجودة عالية جداً (High Resolution)
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 1.0 }, // أعلى جودة للصور
         html2canvas: { 
-            scale: 2,
+            scale: 3, // دقة عالية جداً (300 DPI تقريباً)
             useCORS: true, 
             backgroundColor: '#ffffff',
-            removeContainer: true
+            letterRendering: true,
+            scrollX: 0,
+            scrollY: 0
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
     
     document.body.classList.add('pdf-mode');
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
 
-    showNotification('جاري تجهيز صورة التقرير...', 'info');
+    showNotification('جاري تنسيق التقرير المنظم...', 'info');
 
     setTimeout(async () => {
         try {
-            // توليد الصورة أولاً لأنها الأكثر توافقاً مع الموبايل
-            const canvas = await html2canvas(element, opt.html2canvas);
-            const imgData = canvas.toDataURL('image/png');
+            const worker = html2pdf().set(opt).from(element);
             
             if (isMobile) {
-                // إنشاء نافذة معاينة تعتمد على الصور لضمان الظهور
+                // 1. توليد صورة للمعاينة السريعة (لضمان الرؤية)
+                const canvas = await html2canvas(element, opt.html2canvas);
+                const imgData = canvas.toDataURL('image/png');
+                
+                // 2. توليد الـ PDF المنظم كـ Base64
+                const pdfBase64 = await worker.outputPdf('datauristring');
+
+                // إنشاء واجهة المعاينة مع زر التحميل المنظم
                 const previewOverlay = document.createElement('div');
                 previewOverlay.id = 'print-preview-overlay';
                 previewOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999999;display:flex;flex-direction:column;direction:rtl;';
                 previewOverlay.innerHTML = `
-                    <div style="padding:15px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+                    <div style="padding:15px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.3);">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <i class="fa-solid fa-image" style="color:#10b981; font-size:1.2rem;"></i>
-                            <span style="font-weight:bold;">معاينة التقرير</span>
+                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            <span style="font-weight:bold;">معاينة التقرير (منظم A4)</span>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <button id="external-open-btn" style="padding:8px 12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">
-                                <i class="fa-solid fa-share-nodes"></i> مشاركة / حفظ
+                            <button id="download-organized-btn" style="padding:8px 12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">
+                                <i class="fa-solid fa-download"></i> تحميل PDF منظم
                             </button>
                             <button onclick="document.getElementById('print-preview-overlay').remove(); document.body.classList.remove('pdf-mode');" style="padding:8px 12px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">إغلاق</button>
                         </div>
                     </div>
-                    <div style="flex:1; overflow:auto; background:#f0f2f5; padding:10px; display:flex; justify-content:center;">
-                        <img src="${imgData}" style="max-width:100%; height:auto; box-shadow:0 0 20px rgba(0,0,0,0.2); border:1px solid #ddd;">
+                    <div style="flex:1; overflow:auto; background:#f0f2f5; padding:15px; display:flex; justify-content:center;">
+                        <img src="${imgData}" style="max-width:100%; height:auto; box-shadow:0 0 30px rgba(0,0,0,0.3); border:1px solid #ddd; background:white;">
                     </div>
                     <div style="padding:12px; background:#fff; text-align:center; border-top:1px solid #ddd; color:#1e293b; font-size:0.85rem;">
-                        <i class="fa-solid fa-hand-pointer"></i> يمكنك الضغط مطولاً على الصورة لحفظها في الاستوديو.
+                        <i class="fa-solid fa-circle-check"></i> التقرير جاهز بمقاس A4. اضغط على الزر الأخضر لتحميله كملف منظم.
                     </div>
                 `;
                 document.body.appendChild(previewOverlay);
 
-                // دالة المشاركة
-                document.getElementById('external-open-btn').onclick = async () => {
-                    const blob = await (await fetch(imgData)).blob();
-                    const file = new File([blob], `${filename}.png`, { type: 'image/png' });
+                // دالة التحميل المنظم (Base64 Navigation Trick)
+                document.getElementById('download-organized-btn').onclick = () => {
+                    showNotification('جاري تحميل الملف المنظم...', 'info');
                     
-                    if (navigator.share) {
-                        try {
-                            await navigator.share({
-                                files: [file],
-                                title: 'تقرير مطعم أمواج الصياد'
-                            });
-                        } catch (e) {
-                            // إذا فشلت المشاركة -> محاولة التنزيل التقليدي
-                            const a = document.createElement('a');
-                            a.href = imgData;
-                            a.download = `${filename}.png`;
-                            a.click();
-                        }
-                    } else {
-                        const a = document.createElement('a');
-                        a.href = imgData;
-                        a.download = `${filename}.png`;
-                        a.click();
-                    }
+                    // محاولة التحميل عبر الرابط المخفي
+                    const link = document.createElement('a');
+                    link.href = pdfBase64;
+                    link.download = safeFilename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // محاولة الفتح المباشر في النافذة إذا فشل الرابط
+                    setTimeout(() => {
+                        window.location.href = pdfBase64;
+                    }, 500);
                 };
                 
                 document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
-                showNotification('تم تجهيز التقرير ✓', 'success');
+                showNotification('تم تجهيز التقرير بنجاح ✓', 'success');
 
             } else {
-                // للمتصفحات العادية: حفظ كـ PDF كما هو
-                await html2pdf().set(opt).from(element).save();
+                // للمتصفحات العادية: حفظ مباشر
+                await worker.save();
                 document.body.classList.remove('pdf-mode');
                 if (header) header.style.display = '';
-                showNotification('تم تحميل الملف بنجاح ✓', 'success');
+                showNotification('تم تحميل الملف المنظم ✓', 'success');
             }
 
         } catch (err) {
             console.error('Export Error:', err);
             document.body.classList.remove('pdf-mode');
-            showNotification('حدث خطأ في المعالجة', 'error');
+            showNotification('حدث خطأ أثناء التنظيم', 'error');
         }
     }, 500);
 };
