@@ -274,7 +274,10 @@ window.openInvModal = (type, title) => {
                 <tbody>
                     <tr class="inv-row">
                         <td><input type="text" class="form-control i-num" placeholder="001" onchange="autoFillRow(this)"></td>
-                        <td><input type="text" class="form-control i-name" placeholder="اسم الصنف"></td>
+                        <td style="position:relative;">
+                            <input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off">
+                            <div class="name-suggestions" style="display:none;"></div>
+                        </td>
                         <td><input type="number" class="form-control i-qty" value="1" min="0.1" step="0.1"></td>
                         <td>
                             <select class="form-control i-unit">
@@ -307,7 +310,7 @@ window.addInvRow = (isInventory = false) => {
     r.className = 'inv-row';
     r.innerHTML = `
         <td><input type="text" class="form-control i-num" placeholder="001" onchange="autoFillRow(this)"></td>
-        <td><input type="text" class="form-control i-name" placeholder="اسم الصنف"></td>
+        <td style="position:relative;"><input type="text" class="form-control i-name" placeholder="اسم الصنف" oninput="onNameInput(this)" autocomplete="off"><div class="name-suggestions" style="display:none;"></div></td>
         <td><input type="number" class="form-control i-qty" value="${isInventory ? '0' : '1'}" min="0" step="0.1"></td>
         <td>
             <select class="form-control i-unit">
@@ -339,6 +342,57 @@ window.autoFillRow = async (input) => {
         }
     }
 };
+
+
+// --- Inventory Item Autocomplete ---
+let _invCache = null;
+
+async function getInventoryCache() {
+    if (_invCache) return _invCache;
+    const snap = await db.ref('inventory').once('value');
+    _invCache = snap.exists() ? Object.values(snap.val()) : [];
+    setTimeout(() => { _invCache = null; }, 30000);
+    return _invCache;
+}
+
+window.onNameInput = async (input) => {
+    const val = input.value.trim().toLowerCase();
+    const box = input.parentElement.querySelector('.name-suggestions');
+    if (!box) return;
+    if (!val) { box.style.display = 'none'; return; }
+
+    const items = await getInventoryCache();
+    const matches = items.filter(it => it.name && it.name.toLowerCase().includes(val)).slice(0, 7);
+
+    if (!matches.length) { box.style.display = 'none'; return; }
+
+    box.innerHTML = '';
+    matches.forEach(it => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.dataset.name = it.name;
+        div.dataset.num = it.itemNumber || '';
+        div.dataset.unit = it.unit || 'عدد';
+        div.innerHTML = `<span class="sug-name">${it.name}</span><span class="sug-info">${it.itemNumber ? '#'+it.itemNumber+' &bull; ' : ''}${it.unit||''} &bull; كمية: <b>${it.quantity}</b></span>`;
+        div.addEventListener('mousedown', () => pickItem(div));
+        box.appendChild(div);
+    });
+    box.style.display = 'block';
+    input.onblur = () => setTimeout(() => { box.style.display = 'none'; }, 200);
+};
+
+window.pickItem = (el) => {
+    const row = el.closest('tr');
+    if (!row) return;
+    row.querySelector('.i-name').value = el.dataset.name;
+    const numInput = row.querySelector('.i-num');
+    if (numInput) numInput.value = el.dataset.num || '';
+    const unitSel = row.querySelector('.i-unit');
+    if (unitSel) unitSel.value = el.dataset.unit || 'عدد';
+    el.parentElement.style.display = 'none';
+};
+
+window.showNameSuggestions = window.onNameInput;
 
 window.submitInv = async (type) => {
     const rows = document.querySelectorAll('.inv-row');
@@ -822,8 +876,77 @@ window.delItem = async (key) => {
 };
 
 function renderSettings(container) {
-    container.innerHTML = `<div class="section-header"><h2>الإعدادات</h2></div><div class="table-container" style="padding:30px; max-width:500px; margin:0 auto;"><h3>ضبط حد النواقص</h3><input type="number" id="set-threshold" class="form-control" value="${appSettings.lowStockThreshold}"><button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:15px;">حفظ</button></div>`;
-    window.saveSet = async function() { await db.ref('settings/general').update({ lowStockThreshold: document.getElementById('set-threshold').value }); showNotification('تم الحفظ'); };
+    container.innerHTML = `
+        <div class="section-header"><h2><i class="fa-solid fa-gear"></i> الإعدادات</h2></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:800px; margin:0 auto;">
+
+            <div class="table-container" style="padding:30px;">
+                <h3><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> حد تنبيه النواقص</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">سيظهر التنبيه عند وصول كمية أي صنف لهذا الرقم أو أقل</p>
+                <input type="number" id="set-threshold" class="form-control" value="${appSettings.lowStockThreshold || 1}" min="0">
+                <button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:15px;">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ
+                </button>
+            </div>
+
+            <div class="table-container" style="padding:30px; border: 2px solid rgba(211,47,47,0.3);">
+                <h3><i class="fa-solid fa-trash-can" style="color:#ef4444;"></i> تنظيف النظام</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">حذف جميع بيانات المخزن والعمليات. هذا الإجراء لا يمكن التراجع عنه!</p>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                    <button class="btn btn-danger" onclick="clearTransactions()" style="width:100%;">
+                        <i class="fa-solid fa-rotate"></i> مسح سجل العمليات فقط
+                    </button>
+                    <button class="btn btn-danger" onclick="clearInventory()" style="width:100%;">
+                        <i class="fa-solid fa-boxes-stacked"></i> مسح بيانات المخزن فقط
+                    </button>
+                    <button class="btn btn-danger" onclick="clearAll()" style="width:100%; background: #7f1d1d;">
+                        <i class="fa-solid fa-nuke"></i> مسح الكل (تصفير كامل)
+                    </button>
+                </div>
+            </div>
+
+        </div>`;
+
+    window.saveSet = async function() {
+        const val = parseFloat(document.getElementById('set-threshold').value);
+        await db.ref('settings/general').update({ lowStockThreshold: val });
+        appSettings.lowStockThreshold = val;
+        showNotification('تم حفظ إعدادات النواقص بنجاح');
+    };
+
+    window.clearTransactions = async function() {
+        const pass = prompt('أدخل كلمة مرور المدير لتأكيد مسح العمليات:');
+        if(pass === null) return;
+        if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
+        if(!confirm('سيتم حذف جميع سجلات العمليات (شراء، استهلاك، مرتجع، تالف). هل أنت متأكد؟')) return;
+        try {
+            await db.ref('transactions').remove();
+            showNotification('تم مسح سجل العمليات بنجاح');
+        } catch(e) { showNotification('حدث خطأ أثناء الحذف', 'error'); }
+    };
+
+    window.clearInventory = async function() {
+        const pass = prompt('أدخل كلمة مرور المدير لتأكيد مسح المخزن:');
+        if(pass === null) return;
+        if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
+        if(!confirm('سيتم حذف جميع أصناف المخزن. هل أنت متأكد؟')) return;
+        try {
+            await db.ref('inventory').remove();
+            showNotification('تم مسح بيانات المخزن بنجاح');
+        } catch(e) { showNotification('حدث خطأ أثناء الحذف', 'error'); }
+    };
+
+    window.clearAll = async function() {
+        const pass = prompt('تحذير: ستُمسح جميع البيانات نهائياً!\nأدخل كلمة مرور المدير للتأكيد:');
+        if(pass === null) return;
+        if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
+        if(!confirm('⚠️ تنبيه أخير: سيتم حذف المخزن بالكامل وجميع العمليات نهائياً. هل أنت متأكد 100%؟')) return;
+        try {
+            await db.ref('transactions').remove();
+            await db.ref('inventory').remove();
+            showNotification('تم تصفير النظام بالكامل بنجاح');
+        } catch(e) { showNotification('حدث خطأ أثناء الحذف', 'error'); }
+    };
 }
 
 function initChart() {
