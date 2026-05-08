@@ -1235,3 +1235,216 @@ select.form-control {
 canvas {
     filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1));
 }
+
+/* =============================================
+   RESPONSIVE - TABLET & ANDROID (≤ 900px)
+   ============================================= */
+@media (max-width: 900px) {
+
+    /* Sidebar becomes bottom nav */
+    .sidebar {
+        width: 100% !important;
+        height: 60px !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        top: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        padding: 0 !important;
+        border-top: 1px solid rgba(255,255,255,0.08) !important;
+        border-right: none !important;
+        z-index: 1000 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .sidebar-header {
+        display: none !important;
+    }
+
+    .nav-item {
+        flex-direction: column !important;
+        gap: 3px !important;
+        padding: 8px 10px !important;
+        font-size: 0.7rem !important;
+        border-right: none !important;
+        border-bottom: 3px solid transparent !important;
+        border-radius: 0 !important;
+        min-width: 60px;
+        align-items: center;
+        flex: 1;
+    }
+
+    .nav-item.active {
+        border-right: none !important;
+        border-bottom: 3px solid var(--primary-color) !important;
+        background: rgba(79,70,229,0.15) !important;
+    }
+
+    .nav-item i { font-size: 1.1rem !important; }
+    .nav-item span { font-size: 0.65rem !important; white-space: nowrap; }
+
+    .nav-badge {
+        font-size: 0.6rem !important;
+        padding: 1px 5px !important;
+        position: absolute;
+        top: 4px;
+        right: 4px;
+    }
+
+    .nav-item { position: relative; }
+
+    /* Main content fills screen */
+    .main-content {
+        margin-right: 0 !important;
+        margin-bottom: 60px !important;
+        padding: 15px 12px !important;
+    }
+
+    .app-container {
+        flex-direction: column !important;
+    }
+
+    /* Header */
+    .top-header {
+        padding: 10px 15px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .date-time { font-size: 0.75rem !important; }
+    .user-info span { display: none; }
+
+    /* Stats cards */
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    .stat-card { padding: 15px !important; }
+    .stat-icon { font-size: 1.5rem !important; width: 45px !important; height: 45px !important; }
+    .stat-info h3 { font-size: 0.85rem !important; }
+    .stat-info p { font-size: 1.5rem !important; }
+
+    /* Storekeeper action cards */
+    .storekeeper-actions {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    .action-card { padding: 20px 15px !important; }
+    .action-card i { font-size: 2rem !important; }
+    .action-card h3 { font-size: 0.9rem !important; }
+    .action-card p { font-size: 0.75rem !important; }
+
+    /* Charts row */
+    .charts-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Tables */
+    .table-container { overflow-x: auto !important; }
+    table { min-width: 600px; }
+    th, td { font-size: 0.8rem !important; padding: 8px 6px !important; }
+
+    /* Section header */
+    .section-header {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+
+    .section-header h2 { font-size: 1.2rem !important; }
+
+    /* Actions bar */
+    .actions-bar {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+
+    /* Modal */
+    .modal-container {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        margin: 10px auto !important;
+    }
+
+    .modal-body { padding: 15px !important; }
+
+    /* Settings grid */
+    .table-container[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* =============================================
+   RESPONSIVE - MOBILE PHONE (≤ 480px)
+   ============================================= */
+@media (max-width: 480px) {
+
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .storekeeper-actions {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .action-card {
+        padding: 15px 10px !important;
+        border-radius: 12px !important;
+    }
+
+    .action-card i { font-size: 1.6rem !important; }
+    .action-card h3 { font-size: 0.8rem !important; }
+    .action-card p { display: none !important; }
+
+    .stat-card { padding: 12px !important; }
+    .stat-info h3 { font-size: 0.75rem !important; }
+    .stat-info p { font-size: 1.3rem !important; }
+
+    .main-content { padding: 10px 8px !important; }
+
+    .btn { padding: 8px 14px !important; font-size: 0.85rem !important; }
+
+    th, td { font-size: 0.72rem !important; padding: 6px 4px !important; }
+
+    .modal-container { width: 98vw !important; border-radius: 12px !important; }
+
+    /* Input table inside modal - scroll horizontally */
+    .input-table { min-width: 500px; }
+
+    .section-header h2 { font-size: 1rem !important; }
+
+    /* Welcome screen */
+    .welcome-logo-wrapper { width: 120px !important; height: 120px !important; }
+    .welcome-title { font-size: 1.6rem !important; }
+    .welcome-subtitle { font-size: 0.9rem !important; }
+    .welcome-btn { padding: 12px 30px !important; font-size: 1rem !important; }
+}
+
+/* Touch-friendly: bigger tap targets on mobile */
+@media (hover: none) and (pointer: coarse) {
+    .nav-item { min-height: 44px; }
+    .btn { min-height: 44px; }
+    .form-control { min-height: 44px; font-size: 16px !important; } /* prevents zoom on iOS */
+    select.form-control { min-height: 44px; }
+    th, td { padding: 10px 8px !important; }
+    .suggestion-item { padding: 14px !important; }
+    .inv-picker-item { padding: 14px 15px !important; }
+}
+
+/* Safe area for notch phones */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .sidebar {
+        padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+    .main-content {
+        padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+    }
+}
