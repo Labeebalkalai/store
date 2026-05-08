@@ -5,29 +5,27 @@
 // --- Smart Print: يعمل على المتصفح والأندرويد معاً ---
 window.isAndroidWebView = () => {
     const ua = navigator.userAgent || '';
-    // يكتشف Android WebView عبر user agent
-    return /Android/.test(ua) && (
-        /wv\)/.test(ua) ||                   // WebView مباشر
-        !/Chrome\/\d/.test(ua) ||            // بدون Chrome عادي
-        /Version\/\d+\.\d+ Mobile/.test(ua) // متصفح مدمج قديم
-    );
+    // يكتشف Android WebView أو التطبيقات المدمجة
+    const isAndroid = /Android/i.test(ua);
+    const isWebView = /wv|Version\/[\d.]+/i.test(ua) || (isAndroid && !/Chrome\/[\d.]+/i.test(ua));
+    return isAndroid && isWebView;
 };
 
 window.smartPrint = function(elementId, filename) {
     const isAndroid = window.isAndroidWebView();
-    const printUnavailable = typeof window.print !== 'function';
+    
+    // 1. محاولة استخدام جسر الطباعة إذا كان التطبيق مغلفاً بـ WebView يدعم ذلك
+    if (window.AndroidPrint && typeof window.AndroidPrint.printPage === 'function') {
+        window.AndroidPrint.printPage();
+        return;
+    }
 
-    if (isAndroid || printUnavailable) {
-        // Android أو بيئة بدون print → توليد PDF مباشرة
-        exportToPDF(elementId, filename);
+    // 2. إذا كان متصفح عادي (Chrome/Safari) وليس WebView مقيد
+    if (!isAndroid && typeof window.print === 'function') {
+        window.print();
     } else {
-        // متصفح عادي → عرض خيار للمستخدم
-        const choice = confirm('اختر طريقة الإخراج:\nموافق = طباعة\nإلغاء = تنزيل PDF');
-        if (choice) {
-            window.print();
-        } else {
-            exportToPDF(elementId, filename);
-        }
+        // 3. في الأندرويد أو البيئات التي لا تدعم window.print → تحويل لـ PDF
+        exportToPDF(elementId, filename);
     }
 };
 
@@ -693,25 +691,26 @@ window.exportToPDF = async (elementId, filename) => {
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
     const opt = {
-        margin: 10,
+        margin: [10, 5, 10, 5],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: 2, 
+            scale: 3, 
             useCORS: true, 
             logging: false,
             backgroundColor: '#ffffff',
             windowWidth: 1024,
-            ignoreElements: (el) => el.classList.contains('no-print')
+            ignoreElements: (el) => el.classList.contains('no-print') || el.tagName === 'BUTTON'
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
     };
     
-    showNotification('جاري تجهيز ملف PDF...', 'info');
+    showNotification('جاري تجهيز المستند...', 'info');
     
-    // إظهار رأس الطباعة
+    // إعداد العناصر للطباعة
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
+    element.classList.add('pdf-mode');
 
     // استخدام اللوغو Base64 لتجنب مشكلة CORS
     const img = header ? header.querySelector('img') : null;
@@ -721,8 +720,6 @@ window.exportToPDF = async (elementId, filename) => {
         img.src = LOGO_BASE64;
     }
 
-    element.classList.add('pdf-mode');
-
     const resetElement = () => {
         element.classList.remove('pdf-mode');
         if (header) header.style.display = '';
@@ -730,36 +727,60 @@ window.exportToPDF = async (elementId, filename) => {
     };
 
     try {
-        if (window.isAndroidWebView && window.isAndroidWebView()) {
-            // Android WebView: توليد blob وفتحه
+        const isAndroid = window.isAndroidWebView();
+
+        if (isAndroid) {
+            // طريقة الأندرويد: توليد الملف ثم محاولة المشاركة أو التحميل
             const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
             resetElement();
-            const blobUrl = URL.createObjectURL(pdfBlob);
-            // محاولة الفتح في نافذة جديدة
-            const opened = window.open(blobUrl, '_blank');
-            if (!opened) {
-                // إذا فشل الفتح → تحميل مباشر
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = safeFilename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+            
+            const file = new File([pdfBlob], safeFilename, { type: 'application/pdf' });
+
+            // محاولة استخدام خاصية المشاركة (الأفضل للأندرويد)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'تقرير مطعم أمواج الصياد',
+                        text: 'إليك نسخة من التقرير بصيغة PDF'
+                    });
+                    showNotification('تمت المعالجة بنجاح ✓');
+                } catch (shareErr) {
+                    // إذا ألغى المستخدم المشاركة أو فشلت
+                    triggerDownload(pdfBlob, safeFilename);
+                }
+            } else {
+                // إذا لم تتوفر المشاركة -> تحميل مباشر
+                triggerDownload(pdfBlob, safeFilename);
             }
-            showNotification('تم إنشاء ملف PDF بنجاح ✓');
         } else {
             // متصفح عادي: حفظ مباشر
             await html2pdf().set(opt).from(element).save();
             resetElement();
-            showNotification('تم تحميل ملف PDF بنجاح ✓');
+            showNotification('تم تحميل الملف بنجاح ✓');
         }
     } catch (err) {
         console.error('PDF Error:', err);
         resetElement();
-        showNotification('خطأ في إنشاء PDF: ' + (err.message || 'حدث خطأ غير معروف'), 'error');
+        showNotification('حدث خطأ في إنشاء الملف', 'error');
     }
 };
+
+// دالة مساعدة للتحميل تضمن العمل على WebView
+function triggerDownload(blob, name) {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    }, 2000);
+    showNotification('تم إنشاء الملف، تفقد التنزيلات ✓');
+}
 
 
 window.exportToExcel = (tableId, filename) => {
