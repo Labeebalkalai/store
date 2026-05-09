@@ -140,7 +140,7 @@ function renderDashboardCommon(container, prefix) {
     const contentDiv = container.querySelector(`#${prefix}-content`);
     contentDiv.innerHTML = `
         <div class="print-header">
-            <img src="logo.png.jpeg" alt="Logo">
+            <img src="${LOGO_BASE64}" alt="Logo">
             <div class="print-title">
                 <h1>مطعم أمواج الصياد</h1>
                 <h3>تقرير العمليات الموثق</h3>
@@ -186,12 +186,16 @@ function renderDashboardCommon(container, prefix) {
         <div class="table-container">
             <div class="table-header no-print">
                 <h4><i class="fa-solid fa-list-check"></i> سجل العمليات التفصيلي</h4>
-                <div class="header-tools">
-                    <button class="btn btn-outline btn-sm" onclick="changePassword('${prefix === 'mgr' ? 'manager' : 'storekeeper'}')">
-                        <i class="fa-solid fa-key"></i> تغيير كلمة المرور
-                    </button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-outline btn-sm" onclick="changePassword('${prefix === 'mgr' ? 'manager' : 'storekeeper'}')">
+                            <i class="fa-solid fa-key"></i> كلمة مرور ${prefix === 'mgr' ? 'المدير' : 'المخزن'}
+                        </button>
+                        ${prefix === 'sk' ? `
+                        <button class="btn btn-outline btn-sm" onclick="changePassword('actions')">
+                            <i class="fa-solid fa-key"></i> كلمة مرور العمليات
+                        </button>` : ''}
+                    </div>
                     <button class="btn btn-primary btn-sm" onclick="smartPrint('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
-                </div>
             </div>
             <table id="${prefix}-table">
                 <thead>
@@ -264,7 +268,16 @@ function loadSection(section) {
     w.innerHTML = '<div style="text-align:center; padding:50px;"><i class="fa-solid fa-spinner fa-spin fa-3x"></i></div>';
     setTimeout(() => {
         switch(section) {
-            case 'manager': w.innerHTML=`<div class="section-header"><h2>لوحة المدير</h2></div>`; renderDashboardCommon(w, 'mgr'); initChart(); break;
+            case 'manager': 
+                w.innerHTML=`<div class="section-header">
+                    <h2>لوحة المدير</h2>
+                    <button class="btn btn-sm btn-outline no-print" onclick="changePassword('manager')">
+                        <i class="fa-solid fa-key"></i> تغيير كلمة مرور المدير
+                    </button>
+                </div>`; 
+                renderDashboardCommon(w, 'mgr'); 
+                initChart(); 
+                break;
             case 'storekeeper': renderStorekeeper(w); break;
             case 'inventory': renderInventory(w); break;
             case 'settings': renderSettings(w); break;
@@ -275,7 +288,17 @@ function loadSection(section) {
 
 function renderStorekeeper(w) {
     w.innerHTML = `
-    <div class="section-header"><h2>أمين المخزن</h2></div>
+    <div class="section-header">
+        <h2>أمين المخزن</h2>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-outline no-print" onclick="changePassword('storekeeper')">
+                <i class="fa-solid fa-key"></i> كلمة مرور المخزن
+            </button>
+            <button class="btn btn-sm btn-outline no-print" onclick="changePassword('actions')">
+                <i class="fa-solid fa-key"></i> كلمة مرور العمليات
+            </button>
+        </div>
+    </div>
     <div class="storekeeper-actions no-print">
         <div class="action-card purchase" onclick="openInvModal('purchases', 'إضافة فاتورة شراء')">
             <i class="fa-solid fa-cart-plus"></i>
@@ -605,7 +628,7 @@ function renderInventory(w) {
     w.innerHTML = `
         <div id="inventory-content">
             <div class="print-header">
-                <img src="logo.png.jpeg" alt="Logo">
+                <img src="${LOGO_BASE64}" alt="Logo">
                 <div class="print-title">
                     <h1>مطعم أمواج الصياد</h1>
                     <h3>تقرير كشف المخزون العام</h3>
@@ -621,7 +644,10 @@ function renderInventory(w) {
             <div class="section-header">
                 <h2>المخزن</h2>
                 <div class="header-tools no-print">
-                    <button class="btn btn-outline btn-sm" onclick="changePassword('storekeeper')"><i class="fa-solid fa-key"></i> كلمة مرور المخزن</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-outline btn-sm" onclick="changePassword('storekeeper')"><i class="fa-solid fa-key"></i> كلمة مرور المخزن</button>
+                        <button class="btn btn-outline btn-sm" onclick="changePassword('actions')"><i class="fa-solid fa-key"></i> كلمة مرور العمليات</button>
+                    </div>
                     <button class="btn btn-outline" onclick="smartPrint('inventory-content', 'كشف_المخزون')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
                 </div>
             </div>
@@ -723,20 +749,19 @@ window.exportToPDF = async (elementId, filename) => {
         return;
     }
 
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
-    // إعدادات متوازنة: جودة عالية مع استقرار للأندرويد
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: 2, // جودة عالية (Retina) ومستقرة للأجهزة
+            scale: 2, 
             useCORS: true, 
             backgroundColor: '#ffffff',
-            letterRendering: true
+            letterRendering: true,
+            allowTaint: true
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
@@ -746,82 +771,20 @@ window.exportToPDF = async (elementId, filename) => {
     const header = element.querySelector('.print-header');
     if (header) header.style.display = 'flex';
 
-    showNotification('جاري تنسيق التقرير المنظم...', 'info');
+    showNotification('جاري تحميل الملف المنظم للاندرويد...', 'info');
 
-    setTimeout(async () => {
-        try {
-            const worker = html2pdf().set(opt).from(element);
-            
-            if (isMobile) {
-                // 1. توليد صورة للمعاينة السريعة (لضمان الرؤية)
-                const canvas = await html2canvas(element, opt.html2canvas);
-                const imgData = canvas.toDataURL('image/png');
-                
-                // 2. توليد الـ PDF المنظم كـ Base64
-                const pdfBase64 = await worker.outputPdf('datauristring');
-
-                // إنشاء واجهة المعاينة مع زر التحميل المنظم
-                const previewOverlay = document.createElement('div');
-                previewOverlay.id = 'print-preview-overlay';
-                previewOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999999;display:flex;flex-direction:column;direction:rtl;';
-                previewOverlay.innerHTML = `
-                    <div style="padding:15px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.3);">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
-                            <span style="font-weight:bold;">معاينة التقرير (منظم A4)</span>
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <button id="download-organized-btn" style="padding:8px 12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">
-                                <i class="fa-solid fa-download"></i> تحميل PDF منظم
-                            </button>
-                            <button onclick="document.getElementById('print-preview-overlay').remove(); document.body.classList.remove('pdf-mode');" style="padding:8px 12px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85rem;">إغلاق</button>
-                        </div>
-                    </div>
-                    <div style="flex:1; overflow:auto; background:#f0f2f5; padding:15px; display:flex; justify-content:center;">
-                        <img src="${imgData}" style="max-width:100%; height:auto; box-shadow:0 0 30px rgba(0,0,0,0.3); border:1px solid #ddd; background:white;">
-                    </div>
-                    <div style="padding:12px; background:#fff; text-align:center; border-top:1px solid #ddd; color:#1e293b; font-size:0.85rem;">
-                        <i class="fa-solid fa-circle-check"></i> التقرير جاهز بمقاس A4. اضغط على الزر الأخضر لتحميله كملف منظم.
-                    </div>
-                `;
-                document.body.appendChild(previewOverlay);
-
-                // دالة التحميل المنظم (Base64 Navigation Trick)
-                document.getElementById('download-organized-btn').onclick = () => {
-                    showNotification('جاري تحميل الملف المنظم...', 'info');
-                    
-                    // محاولة التحميل عبر الرابط المخفي
-                    const link = document.createElement('a');
-                    link.href = pdfBase64;
-                    link.download = safeFilename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-
-                    // محاولة الفتح المباشر في النافذة إذا فشل الرابط
-                    setTimeout(() => {
-                        window.location.href = pdfBase64;
-                    }, 500);
-                };
-                
-                document.body.classList.remove('pdf-mode');
-                if (header) header.style.display = '';
-                showNotification('تم تجهيز التقرير بنجاح ✓', 'success');
-
-            } else {
-                // للمتصفحات العادية: حفظ مباشر
-                await worker.save();
-                document.body.classList.remove('pdf-mode');
-                if (header) header.style.display = '';
-                showNotification('تم تحميل الملف المنظم ✓', 'success');
-            }
-
-        } catch (err) {
-            console.error('Export Error:', err);
-            document.body.classList.remove('pdf-mode');
-            showNotification('حدث خطأ أثناء التنظيم', 'error');
-        }
-    }, 500);
+    try {
+        // استخدام الطريقة المباشرة كما في المشروع المرجعي لضمان التوافق مع اندرويد
+        await html2pdf().set(opt).from(element).save();
+        
+        showNotification('تم تحميل التقرير بنجاح ✓', 'success');
+    } catch (err) {
+        console.error('Export Error:', err);
+        showNotification('حدث خطأ أثناء التنظيم', 'error');
+    } finally {
+        document.body.classList.remove('pdf-mode');
+        if (header) header.style.display = '';
+    }
 };
 
 // دالة مساعدة لتحويل Base64 إلى Blob
@@ -1085,7 +1048,9 @@ window.delItem = async (key) => {
 
 function renderSettings(container) {
     container.innerHTML = `
-        <div class="section-header"><h2><i class="fa-solid fa-gear"></i> الإعدادات</h2></div>
+        <div class="section-header">
+            <h2><i class="fa-solid fa-gear"></i> الإعدادات</h2>
+        </div>
         <div class="settings-grid">
 
             <div class="table-container" style="padding:30px;">
