@@ -145,10 +145,9 @@ function renderDashboardCommon(container, prefix) {
             <div class="print-title">
                 <h1>مطعم أمواج الصياد</h1>
                 <h3>تقرير العمليات الموثق</h3>
-                <p id="${prefix}-print-date"></p>
+                <p class="print-date">${new Date().toLocaleString('ar-YE')}</p>
             </div>
         </div>
-        
         <div class="dashboard-grid no-print">
             <div class="stat-card purchase" onclick="loadTableData('purchases', '${prefix}')">
                 <div class="stat-icon"><i class="fa-solid fa-cart-plus"></i></div>
@@ -196,7 +195,10 @@ function renderDashboardCommon(container, prefix) {
                             <i class="fa-solid fa-key"></i> كلمة مرور العمليات
                         </button>` : ''}
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="exportToPDF('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
+                    <div style="display:flex; gap:8px;" class="no-print">
+                        <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
+                        <button class="btn btn-success btn-sm" onclick="exportToPDF('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-file-pdf"></i> تحميل PDF</button>
+                    </div>
             </div>
             <table id="${prefix}-table">
                 <thead>
@@ -252,7 +254,7 @@ function loadTableData(filter, p) {
                 tbody.innerHTML += `
                     <tr>
                         <td><span class="badge badge-${badgeMap[r.typeKey]}">${map[r.typeKey]}</span></td>
-                        <td>${r.itemNumber}</td>
+                        <td><span class="badge badge-outline">${r.itemNumber}</span></td>
                         <td>${r.name}</td>
                         <td style="font-weight:bold;">${r.quantity}</td>
                         <td>${r.unit}</td>
@@ -634,10 +636,9 @@ function renderInventory(w) {
                 <div class="print-title">
                     <h1>مطعم أمواج الصياد</h1>
                     <h3>تقرير كشف المخزون العام</h3>
-                    <p id="inv-print-date"></p>
+                    <p class="print-date">${new Date().toLocaleString('ar-YE')}</p>
                 </div>
             </div>
-            
             <div id="inv-low-stock-alert" style="display: none; background: rgba(211, 47, 47, 0.15); border: 2px solid #d32f2f; color: #ff5252; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; font-size: 1rem;" class="no-print fade-in">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 &nbsp;<span id="inv-low-stock-text">تنبيه: يوجد أصناف تجاوزت حد النواقص! يرجى مراجعتها وتوفيرها.‏</span>
@@ -650,7 +651,10 @@ function renderInventory(w) {
                         <button class="btn btn-outline btn-sm" onclick="changePassword('storekeeper')"><i class="fa-solid fa-key"></i> كلمة مرور المخزن</button>
                         <button class="btn btn-outline btn-sm" onclick="changePassword('actions')"><i class="fa-solid fa-key"></i> كلمة مرور العمليات</button>
                     </div>
-                    <button class="btn btn-outline" onclick="smartPrint('inventory-content', 'كشف_المخزون')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
+                    <div style="display:flex; gap:8px;" class="no-print">
+                        <button class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة</button>
+                        <button class="btn btn-success" onclick="exportToPDF('inventory-content', 'كشف_المخزون')"><i class="fa-solid fa-file-pdf"></i> تحميل PDF</button>
+                    </div>
                 </div>
             </div>
         <div class="actions-bar no-print">
@@ -731,16 +735,6 @@ function renderInventory(w) {
     });
 }
 
-window.filterInv = () => {
-    const val = document.getElementById('inventorySearch').value.toLowerCase();
-    const rows = document.querySelectorAll('#inventory-tbody tr');
-    rows.forEach(row => {
-        const name = row.getAttribute('data-name').toLowerCase();
-        const num = row.getAttribute('data-num').toLowerCase();
-        row.style.display = (name.includes(val) || num.includes(val)) ? '' : 'none';
-    });
-};
-
 window.exportToPDF = async (elementId, filename) => {
     const originalElement = document.getElementById(elementId);
     if (!originalElement) return showNotification('خطأ: لم يتم العثور على المحتوى', 'error');
@@ -751,78 +745,90 @@ window.exportToPDF = async (elementId, filename) => {
         return;
     }
 
-    showNotification('جاري تجهيز نسخة الطباعة المنظمة...', 'info');
+    showNotification('جاري تجهيز نسخة الـ PDF...', 'info');
 
     try {
-        // إنشاء نسخة معزولة للطباعة (Cloning) لتجنب مشاكل التنسيق
+        // 1. إنشاء نسخة معزولة للطباعة
         const printClone = originalElement.cloneNode(true);
-        printClone.id = 'print-clone-temp';
+        printClone.style.backgroundColor = "white";
+        printClone.style.width = "210mm"; // عرض A4
+        printClone.style.minHeight = "297mm";
         
-        // تنظيف النسخة من أزرار الواجهة والعناصر غير المطلوبة
-        const selectorsToRemove = '.no-print, button, .header-tools, .actions-bar, .search-box, .action-btns, script, i';
+        // تنظيف النسخة
+        const selectorsToRemove = '.no-print, button, .action-btns, .search-box, .stat-card, .charts-row';
         printClone.querySelectorAll(selectorsToRemove).forEach(el => el.remove());
 
-        // ضبط الشعار يدوياً في نسخة الطباعة
-        const logo = printClone.querySelector('.print-header img');
-        if (logo) {
-            logo.src = 'logo.png.jpeg'; // استخدام الصورة العادية
-            logo.style.width = '100px';
-            logo.style.height = 'auto';
-            logo.style.display = 'block';
-            logo.style.marginBottom = '10px';
+        // ضمان ظهور الشعار والترويسة
+        const header = printClone.querySelector('.print-header');
+        if (header) {
+            header.style.display = 'flex';
+            header.style.visibility = 'visible';
+            header.style.opacity = '1';
         }
 
-        // فرض تنسيق الورقة البيضاء (CSS Force)
+        const logo = printClone.querySelector('.print-header img');
+        if (logo && typeof LOGO_BASE64 !== 'undefined') {
+            logo.src = LOGO_BASE64;
+        }
+
+        // 2. وضع النسخة في حاوية "شبه مرئية" لضمان التقاطها من المتصفح
         const container = document.createElement('div');
-        container.style.cssText = 'position:fixed; top:-10000px; left:-10000px; width:210mm; background:white; color:black; direction:rtl; font-family:Tajawal, sans-serif; padding:20px;';
+        // نضعها في مكان بعيد جداً لليسار ولكن بـ top:0 لضمان صحة الإحداثيات
+        container.style.cssText = 'position:fixed; top:0; left:-10000px; width:210mm; background:white; z-index:-9999; direction:rtl; opacity:1;';
         container.appendChild(printClone);
         document.body.appendChild(container);
 
-        // ضبط الجداول لتكون واضحة جداً
-        printClone.querySelectorAll('table').forEach(table => {
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.marginTop = '20px';
-            table.style.background = 'white';
-            table.querySelectorAll('th, td').forEach(cell => {
-                cell.style.border = '1px solid #000';
-                cell.style.padding = '10px';
-                cell.style.textAlign = 'center';
-                cell.style.color = 'black';
-                cell.style.fontSize = '12pt';
+        // فرض تنسيق الجدول
+        printClone.querySelectorAll('table').forEach(tbl => {
+            tbl.style.width = '100%';
+            tbl.style.borderCollapse = 'collapse';
+            tbl.querySelectorAll('th, td').forEach(c => {
+                c.style.border = '1px solid #000';
+                c.style.color = 'black';
+                c.style.padding = '8px';
+                c.style.textAlign = 'center';
+                c.style.fontSize = '10pt';
             });
-            table.querySelectorAll('th').forEach(th => th.style.backgroundColor = '#f2f2f2');
         });
 
-        // الانتظار قليلاً لضمان تحميل الصورة داخل النسخة المعزولة
-        await new Promise(r => setTimeout(r, 400));
+        // انتظار بسيط للتأكد من رندرة المتصفح للنسخة الجديدة
+        await new Promise(r => setTimeout(r, 1000));
 
-        const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         const opt = {
-            margin: 10,
-            filename: `${filename}_${safeDate}.pdf`,
+            margin: 0,
+            filename: `${filename}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { 
                 scale: 2, 
                 useCORS: true, 
-                allowTaint: true,
                 backgroundColor: '#ffffff',
-                scrollY: 0,
-                scrollX: 0
+                scrollY: 0, // إجبار الالتقاط من أعلى العنصر
+                scrollX: 0,
+                windowWidth: 1000
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // توليد وحفظ الملف
-        await html2pdf().set(opt).from(printClone).save();
+        // 3. التوليد والحفظ
+        await html2pdf().set(opt).from(container).save();
         
-        // تنظيف الذاكرة
+        // 4. التنظيف
         document.body.removeChild(container);
-        showNotification('تم تحميل التقرير بنجاح ✓', 'success');
+        showNotification('تم تحميل الملف بنجاح ✓', 'success');
     } catch (err) {
-        console.error('Export Error:', err);
-        showNotification('حدث خطأ أثناء التنظيم', 'error');
+        console.error('PDF Error:', err);
+        showNotification('حدث خطأ، يرجى استخدام زر "طباعة" المباشرة', 'error');
     }
+};
+
+window.filterInv = () => {
+    const val = document.getElementById('inventorySearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#inventory-tbody tr');
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name').toLowerCase();
+        const num = row.getAttribute('data-num').toLowerCase();
+        row.style.display = (name.includes(val) || num.includes(val)) ? '' : 'none';
+    });
 };
 
 // دالة مساعدة لتحويل Base64 إلى Blob
