@@ -97,6 +97,28 @@ window.showNotification = (msg, type = 'success') => {
     setTimeout(() => { notif.style.animation = 'fadeOut 0.3s forwards'; setTimeout(() => notif.remove(), 300); }, 3000);
 };
 
+window.changePassword = async (type) => {
+    const labels = {
+        manager: "كلمة مرور المدير",
+        storekeeper: "كلمة مرور أمين المخزن",
+        actions: "كلمة مرور العمليات / الصندوق"
+    };
+    const oldPass = prompt(`تغيير ${labels[type]}\nأدخل كلمة المرور الحالية للتأكيد:`);
+    if (oldPass === null) return;
+    if (oldPass !== appPasswords[type] && oldPass !== 'rasheed123321') return showNotification('كلمة المرور الحالية خاطئة!', 'error');
+    
+    const newPass = prompt(`أدخل كلمة المرور الجديدة لـ ${labels[type]}:`);
+    if (!newPass || newPass.trim().length < 3) return showNotification('كلمة المرور قصيرة جداً!', 'error');
+    
+    try {
+        await db.ref(`settings/passwords/${type}`).set(newPass);
+        appPasswords[type] = newPass;
+        showNotification(`تم تغيير ${labels[type]} بنجاح ✓`);
+    } catch (e) {
+        showNotification('حدث خطأ أثناء الحفظ!', 'error');
+    }
+};
+
 window.openModal = (html) => {
     const container = document.getElementById('modal-container');
     container.innerHTML = `<div class="modal-overlay active" id="mainModal"><div class="modal-content" style="max-width:1000px; width:95%;">${html}</div></div>`;
@@ -165,6 +187,9 @@ function renderDashboardCommon(container, prefix) {
             <div class="table-header no-print">
                 <h4><i class="fa-solid fa-list-check"></i> سجل العمليات التفصيلي</h4>
                 <div class="header-tools">
+                    <button class="btn btn-outline btn-sm" onclick="changePassword('${prefix === 'mgr' ? 'manager' : 'storekeeper'}')">
+                        <i class="fa-solid fa-key"></i> تغيير كلمة المرور
+                    </button>
                     <button class="btn btn-primary btn-sm" onclick="smartPrint('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
                 </div>
             </div>
@@ -596,6 +621,7 @@ function renderInventory(w) {
             <div class="section-header">
                 <h2>المخزن</h2>
                 <div class="header-tools no-print">
+                    <button class="btn btn-outline btn-sm" onclick="changePassword('storekeeper')"><i class="fa-solid fa-key"></i> كلمة مرور المخزن</button>
                     <button class="btn btn-outline" onclick="smartPrint('inventory-content', 'كشف_المخزون')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
                 </div>
             </div>
@@ -701,18 +727,16 @@ window.exportToPDF = async (elementId, filename) => {
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
-    // إعدادات الـ PDF بجودة عالية جداً (High Resolution)
+    // إعدادات متوازنة: جودة عالية مع استقرار للأندرويد
     const opt = {
         margin: [10, 10, 10, 10],
         filename: safeFilename,
-        image: { type: 'jpeg', quality: 1.0 }, // أعلى جودة للصور
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-            scale: 3, // دقة عالية جداً (300 DPI تقريباً)
+            scale: 2, // جودة عالية (Retina) ومستقرة للأجهزة
             useCORS: true, 
             backgroundColor: '#ffffff',
-            letterRendering: true,
-            scrollX: 0,
-            scrollY: 0
+            letterRendering: true
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
@@ -1071,6 +1095,22 @@ function renderSettings(container) {
                 <button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:15px;">
                     <i class="fa-solid fa-floppy-disk"></i> حفظ
                 </button>
+            </div>
+
+            <div class="table-container" style="padding:30px;">
+                <h3><i class="fa-solid fa-lock" style="color:#10b981;"></i> كلمات المرور</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">إدارة كلمات المرور الخاصة بكافة الأقسام</p>
+                <div style="display:grid; gap:10px;">
+                    <button class="btn btn-outline" onclick="changePassword('manager')" style="text-align:right;">
+                        <i class="fa-solid fa-user-shield"></i> تغيير كلمة مرور المدير
+                    </button>
+                    <button class="btn btn-outline" onclick="changePassword('storekeeper')" style="text-align:right;">
+                        <i class="fa-solid fa-warehouse"></i> تغيير كلمة مرور أمين المخزن
+                    </button>
+                    <button class="btn btn-outline" onclick="changePassword('actions')" style="text-align:right;">
+                        <i class="fa-solid fa-cash-register"></i> تغيير كلمة مرور الصندوق / العمليات
+                    </button>
+                </div>
             </div>
 
             <div class="table-container" style="padding:30px; border: 2px solid rgba(211,47,47,0.3);">
