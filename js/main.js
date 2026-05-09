@@ -740,8 +740,8 @@ window.filterInv = () => {
 };
 
 window.exportToPDF = async (elementId, filename) => {
-    const element = document.getElementById(elementId);
-    if (!element) return showNotification('خطأ: لم يتم العثور على المحتوى', 'error');
+    const originalElement = document.getElementById(elementId);
+    if (!originalElement) return showNotification('خطأ: لم يتم العثور على المحتوى', 'error');
 
     if (typeof html2pdf === 'undefined') {
         showNotification('جاري الطباعة المباشرة...', 'warning');
@@ -749,46 +749,73 @@ window.exportToPDF = async (elementId, filename) => {
         return;
     }
 
-    // تجهيز الملف والتنسيق
-    const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-    const safeFilename = `${filename}_${safeDate}.pdf`;
-
-    // إعدادات الطباعة المنظمة
-    const opt = {
-        margin: [10, 5, 10, 5],
-        filename: safeFilename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            backgroundColor: '#ffffff',
-            letterRendering: true,
-            allowTaint: true,
-            scrollY: 0,
-            scrollX: 0
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-    
-    // تفعيل وضع PDF وإخفاء العناصر غير الضرورية عبر CSS
-    document.body.classList.add('pdf-mode');
-    window.scrollTo(0, 0); // العودة للأعلى لضمان التقاط كامل الصفحة
-
-    showNotification('جاري تنسيق الملف المنظم...', 'info');
+    showNotification('جاري تجهيز نسخة الطباعة المنظمة...', 'info');
 
     try {
-        // الانتظار قليلاً لضمان تطبيق الـ CSS
-        await new Promise(r => setTimeout(r, 300));
+        // 1. إنشاء نسخة معزولة للطباعة (Cloning) لتجنب مشاكل التنسيق
+        const printClone = originalElement.cloneNode(true);
+        printClone.id = 'print-clone-temp';
         
-        await html2pdf().set(opt).from(element).save();
+        // 2. تنظيف النسخة من أزرار الواجهة والعناصر غير المطلوبة
+        const selectorsToRemove = '.no-print, button, .header-tools, .actions-bar, .search-box, .action-btns, script, i';
+        printClone.querySelectorAll(selectorsToRemove).forEach(el => el.remove());
+
+        // 3. ضبط الشعار يدوياً في نسخة الطباعة
+        const logo = printClone.querySelector('.print-header img');
+        if (logo) {
+            logo.src = LOGO_BASE64; // التأكد من استخدام Base64
+            logo.style.width = '100px';
+            logo.style.height = 'auto';
+            logo.style.display = 'block';
+            logo.style.marginBottom = '10px';
+        }
+
+        // 4. فرض تنسيق الورقة البيضاء (CSS Force)
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed; top:-10000px; left:-10000px; width:210mm; background:white; color:black; direction:rtl; font-family:Tajawal, sans-serif; padding:20px;';
+        container.appendChild(printClone);
+        document.body.appendChild(container);
+
+        // ضبط الجداول لتكون واضحة جداً
+        printClone.querySelectorAll('table').forEach(table => {
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.marginTop = '20px';
+            table.style.background = 'white';
+            table.querySelectorAll('th, td').forEach(cell => {
+                cell.style.border = '1px solid #000';
+                cell.style.padding = '10px';
+                cell.style.textAlign = 'center';
+                cell.style.color = 'black';
+                cell.style.fontSize = '12pt';
+            });
+            table.querySelectorAll('th').forEach(th => th.style.backgroundColor = '#f2f2f2');
+        });
+
+        const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        const opt = {
+            margin: 10,
+            filename: `${filename}_${safeDate}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                backgroundColor: '#ffffff',
+                scrollY: 0,
+                scrollX: 0
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // 5. توليد وحفظ الملف
+        await html2pdf().set(opt).from(printClone).save();
         
+        // 6. تنظيف الذاكرة
+        document.body.removeChild(container);
         showNotification('تم تحميل التقرير بنجاح ✓', 'success');
     } catch (err) {
         console.error('Export Error:', err);
         showNotification('حدث خطأ أثناء التنظيم', 'error');
-    } finally {
-        document.body.classList.remove('pdf-mode');
     }
 };
 
