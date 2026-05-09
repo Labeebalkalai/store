@@ -136,11 +136,12 @@ function updateLowStockStatus() {
 }
 
 function renderDashboardCommon(container, prefix) {
-    container.innerHTML += `<div id="${prefix}-content">`;
-    const contentDiv = container.querySelector(`#${prefix}-content`);
+    const contentDiv = document.createElement('div');
+    contentDiv.id = `${prefix}-content`;
+    
     contentDiv.innerHTML = `
         <div class="print-header">
-            <img src="${LOGO_BASE64}" alt="Logo">
+            <img src="logo.png.jpeg" alt="Logo">
             <div class="print-title">
                 <h1>مطعم أمواج الصياد</h1>
                 <h3>تقرير العمليات الموثق</h3>
@@ -195,7 +196,7 @@ function renderDashboardCommon(container, prefix) {
                             <i class="fa-solid fa-key"></i> كلمة مرور العمليات
                         </button>` : ''}
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="smartPrint('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
+                    <button class="btn btn-primary btn-sm" onclick="exportToPDF('${prefix}-content', 'سجل_العمليات')"><i class="fa-solid fa-print"></i> طباعة / PDF</button>
             </div>
             <table id="${prefix}-table">
                 <thead>
@@ -214,7 +215,8 @@ function renderDashboardCommon(container, prefix) {
             </table>
         </div>
     `;
-    container.innerHTML += `</div>`; // Close prefix-content
+    
+    container.appendChild(contentDiv);
     loadTableData(null, prefix);
     if(prefix === 'mgr') loadLowStockList();
     
@@ -628,7 +630,7 @@ function renderInventory(w) {
     w.innerHTML = `
         <div id="inventory-content">
             <div class="print-header">
-                <img src="${LOGO_BASE64}" alt="Logo">
+                <img src="logo.png.jpeg" alt="Logo">
                 <div class="print-title">
                     <h1>مطعم أمواج الصياد</h1>
                     <h3>تقرير كشف المخزون العام</h3>
@@ -752,25 +754,25 @@ window.exportToPDF = async (elementId, filename) => {
     showNotification('جاري تجهيز نسخة الطباعة المنظمة...', 'info');
 
     try {
-        // 1. إنشاء نسخة معزولة للطباعة (Cloning) لتجنب مشاكل التنسيق
+        // إنشاء نسخة معزولة للطباعة (Cloning) لتجنب مشاكل التنسيق
         const printClone = originalElement.cloneNode(true);
         printClone.id = 'print-clone-temp';
         
-        // 2. تنظيف النسخة من أزرار الواجهة والعناصر غير المطلوبة
+        // تنظيف النسخة من أزرار الواجهة والعناصر غير المطلوبة
         const selectorsToRemove = '.no-print, button, .header-tools, .actions-bar, .search-box, .action-btns, script, i';
         printClone.querySelectorAll(selectorsToRemove).forEach(el => el.remove());
 
-        // 3. ضبط الشعار يدوياً في نسخة الطباعة
+        // ضبط الشعار يدوياً في نسخة الطباعة
         const logo = printClone.querySelector('.print-header img');
         if (logo) {
-            logo.src = LOGO_BASE64; // التأكد من استخدام Base64
+            logo.src = 'logo.png.jpeg'; // استخدام الصورة العادية
             logo.style.width = '100px';
             logo.style.height = 'auto';
             logo.style.display = 'block';
             logo.style.marginBottom = '10px';
         }
 
-        // 4. فرض تنسيق الورقة البيضاء (CSS Force)
+        // فرض تنسيق الورقة البيضاء (CSS Force)
         const container = document.createElement('div');
         container.style.cssText = 'position:fixed; top:-10000px; left:-10000px; width:210mm; background:white; color:black; direction:rtl; font-family:Tajawal, sans-serif; padding:20px;';
         container.appendChild(printClone);
@@ -792,6 +794,9 @@ window.exportToPDF = async (elementId, filename) => {
             table.querySelectorAll('th').forEach(th => th.style.backgroundColor = '#f2f2f2');
         });
 
+        // الانتظار قليلاً لضمان تحميل الصورة داخل النسخة المعزولة
+        await new Promise(r => setTimeout(r, 400));
+
         const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         const opt = {
             margin: 10,
@@ -800,6 +805,7 @@ window.exportToPDF = async (elementId, filename) => {
             html2canvas: { 
                 scale: 2, 
                 useCORS: true, 
+                allowTaint: true,
                 backgroundColor: '#ffffff',
                 scrollY: 0,
                 scrollX: 0
@@ -807,10 +813,10 @@ window.exportToPDF = async (elementId, filename) => {
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // 5. توليد وحفظ الملف
+        // توليد وحفظ الملف
         await html2pdf().set(opt).from(printClone).save();
         
-        // 6. تنظيف الذاكرة
+        // تنظيف الذاكرة
         document.body.removeChild(container);
         showNotification('تم تحميل التقرير بنجاح ✓', 'success');
     } catch (err) {

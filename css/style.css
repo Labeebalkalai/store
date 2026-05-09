@@ -1056,149 +1056,9 @@ select.form-control {
         color: black !important;
     }
     
-    .print-header {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        padding: 20px !important;
-        border-bottom: 2px solid #000 !important;
-        margin-bottom: 20px !important;
-    }
-    
-    .print-header img {
-        width: 100px !important;
-        height: auto !important;
-    }
-
-    .no-print, .sidebar, .nav-item, .actions-bar, .storekeeper-actions, .btn, .search-box, .modal-overlay, .sidebar-header, .header-tools, .action-btns {
+    .no-print, .sidebar, .nav-item, .actions-bar, .storekeeper-actions, .btn, .search-box, .modal-overlay, .sidebar-header, .top-header {
         display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
     }
-    
-    table {
-        background: white !important;
-        color: black !important;
-        width: 100% !important;
-        border-collapse: collapse !important;
-    }
-    
-    th, td {
-        border: 1px solid black !important;
-        color: black !important;
-    }
-    
-    th {
-        background: #f2f2f2 !important;
-    }
-}
-
-/* PDF Export Specific Mode (html2canvas compatibility) */
-body.pdf-mode, 
-body.pdf-mode .app-container, 
-body.pdf-mode .main-content, 
-body.pdf-mode .content-wrapper {
-    background: white !important;
-    color: black !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 210mm !important; /* Force A4 width */
-}
-
-.pdf-mode * {
-    color: black !important;
-    text-shadow: none !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    animation: none !important;
-    transition: none !important;
-    background: transparent !important;
-}
-
-.pdf-mode .print-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 20px !important;
-    border-bottom: 2px solid #000 !important;
-    margin-bottom: 20px !important;
-    background: white !important;
-}
-
-.pdf-mode .print-header img {
-    width: 80px !important; /* Fixed logo size in PDF */
-    height: auto !important;
-}
-
-.pdf-mode .print-title h1 {
-    font-size: 18pt !important;
-    margin: 0 !important;
-}
-
-.pdf-mode .table-container {
-    background: white !important;
-    border: 1px solid #000 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 10px !important;
-    width: calc(100% - 20px) !important;
-}
-
-.pdf-mode table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    background: white !important;
-}
-
-.pdf-mode th {
-    background: #e2e8f0 !important;
-    color: black !important;
-    border: 1px solid #000 !important;
-    padding: 8px !important;
-    font-size: 10pt !important;
-}
-
-.pdf-mode td {
-    border: 1px solid #000 !important;
-    background: white !important;
-    color: black !important;
-    padding: 8px !important;
-    font-size: 9pt !important;
-}
-
-/* Strictly hide EVERYTHING unnecessary */
-.pdf-mode .no-print, 
-.pdf-mode .sidebar, 
-.pdf-mode .top-header, 
-.pdf-mode .nav-item, 
-.pdf-mode .btn,
-.pdf-mode .header-tools,
-.pdf-mode .search-box,
-.pdf-mode .actions-bar,
-.pdf-mode .action-btns,
-.pdf-mode .header-tools div,
-.pdf-mode .section-header button {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    height: 0 !important;
-    width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.pdf-mode .section-header {
-    background: white !important;
-    padding: 10px 20px !important;
-    border: none !important;
-}
-
-.pdf-mode .section-header h2 {
-    font-size: 14pt !important;
-    text-align: center !important;
-    width: 100% !important;
-}
 
     .app-container {
         display: block !important;
@@ -1294,7 +1154,6 @@ body.pdf-mode .content-wrapper {
         font-size: 9pt !important;
     }
 
-    /* Fix for RTL printing */
     * {
         direction: rtl !important;
     }
