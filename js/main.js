@@ -749,11 +749,13 @@ window.exportToPDF = async (elementId, filename) => {
         return;
     }
 
+    // تجهيز الملف والتنسيق
     const safeDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const safeFilename = `${filename}_${safeDate}.pdf`;
 
+    // إعدادات الطباعة المنظمة
     const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [10, 5, 10, 5],
         filename: safeFilename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
@@ -761,20 +763,24 @@ window.exportToPDF = async (elementId, filename) => {
             useCORS: true, 
             backgroundColor: '#ffffff',
             letterRendering: true,
-            allowTaint: true
+            allowTaint: true,
+            scrollY: 0,
+            scrollX: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
     
+    // تفعيل وضع PDF وإخفاء العناصر غير الضرورية عبر CSS
     document.body.classList.add('pdf-mode');
-    const header = element.querySelector('.print-header');
-    if (header) header.style.display = 'flex';
+    window.scrollTo(0, 0); // العودة للأعلى لضمان التقاط كامل الصفحة
 
-    showNotification('جاري تحميل الملف المنظم للاندرويد...', 'info');
+    showNotification('جاري تنسيق الملف المنظم...', 'info');
 
     try {
-        // استخدام الطريقة المباشرة كما في المشروع المرجعي لضمان التوافق مع اندرويد
+        // الانتظار قليلاً لضمان تطبيق الـ CSS
+        await new Promise(r => setTimeout(r, 300));
+        
         await html2pdf().set(opt).from(element).save();
         
         showNotification('تم تحميل التقرير بنجاح ✓', 'success');
@@ -783,7 +789,6 @@ window.exportToPDF = async (elementId, filename) => {
         showNotification('حدث خطأ أثناء التنظيم', 'error');
     } finally {
         document.body.classList.remove('pdf-mode');
-        if (header) header.style.display = '';
     }
 };
 
