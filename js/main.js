@@ -61,7 +61,7 @@ else {
 // --- Passwords & Settings ---
 let currentSection = 'manager';
 let appPasswords = { manager: "admin123", storekeeper: "astore123", actions: "rasheed123321" };
-let appSettings = { lowStockThreshold: 1 };
+let appSettings = { lowStockThreshold: 1, thresholdKilo: 1, thresholdLiter: 1, thresholdGram: 100 };
 
 function syncSettings() {
     db.ref('settings/passwords').on('value', (snap) => { if (snap.exists()) appPasswords = snap.val(); else db.ref('settings/passwords').set(appPasswords); });
@@ -127,10 +127,22 @@ window.openModal = (html) => {
 
 window.closeModal = () => { const m = document.getElementById('mainModal'); if(m) { m.classList.remove('active'); setTimeout(() => m.remove(), 300); } };
 
+function getThreshold(unit) {
+    if (unit === 'كيلو') return parseFloat(appSettings.thresholdKilo) || 1;
+    if (unit === 'لتر') return parseFloat(appSettings.thresholdLiter) || 1;
+    if (unit === 'جرام') return parseFloat(appSettings.thresholdGram) || 100;
+    return parseFloat(appSettings.lowStockThreshold) || 1;
+}
+
 function updateLowStockStatus() {
     db.ref('inventory').on('value', (snap) => {
-        let count = 0; const threshold = parseFloat(appSettings.lowStockThreshold) || 5;
-        if(snap.exists()) Object.values(snap.val()).forEach(it => { if(parseFloat(it.quantity) < threshold) count++; });
+        let count = 0;
+        if(snap.exists()) {
+            Object.values(snap.val()).forEach(it => {
+                const threshold = getThreshold(it.unit);
+                if(parseFloat(it.quantity) < threshold) count++;
+            });
+        }
         const b = document.getElementById('low-stock-badge'); if(b) { b.style.display = count > 0 ? 'flex' : 'none'; b.innerText = count; }
     });
 }
@@ -380,6 +392,7 @@ window.openInvModal = async (type, title) => {
                                 <option>عدد</option>
                                 <option>لتر</option>
                                 <option>كيلو</option>
+                                <option>جرام</option>
                             </select>
                         </td>
                         <td><button class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-times"></i></button></td>
@@ -419,6 +432,7 @@ window.addInvRow = (isInventory = false) => {
                 <option>عدد</option>
                 <option>لتر</option>
                 <option>كيلو</option>
+                <option>جرام</option>
             </select>
         </td>
         <td><button class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-times"></i></button></td>
@@ -505,7 +519,7 @@ window.showInvPicker = (btn) => {
                 <div style="font-weight:600; color:#e2e8f0;">${it.name}</div>
                 <div style="font-size:0.8rem; color:#64748b;">${it.itemNumber ? '#'+it.itemNumber : ''} &bull; ${it.unit||''}</div>
             </div>
-            <span style="background:${parseFloat(it.quantity)<(appSettings.lowStockThreshold||1)?'#7f1d1d':'rgba(16,185,129,0.15)'}; color:${parseFloat(it.quantity)<(appSettings.lowStockThreshold||1)?'#fca5a5':'#10b981'}; padding:4px 12px; border-radius:20px; font-weight:700;">${it.quantity}</span>
+            <span style="background:${parseFloat(it.quantity)<getThreshold(it.unit)?'#7f1d1d':'rgba(16,185,129,0.15)'}; color:${parseFloat(it.quantity)<getThreshold(it.unit)?'#fca5a5':'#10b981'}; padding:4px 12px; border-radius:20px; font-weight:700;">${it.quantity}</span>
         </div>
     `).join('');
 
@@ -690,7 +704,6 @@ function renderInventory(w) {
         const tbody = document.getElementById('inventory-tbody'); if(!tbody) return;
         tbody.innerHTML = '';
         let lowStockCount = 0;
-        const threshold = parseFloat(appSettings.lowStockThreshold) || 1;
         
         if(snap.exists()) {
             const items = [];
@@ -699,6 +712,7 @@ function renderInventory(w) {
             // Sort by timestamp (newest first)
             items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(it => {
                 const key = it.key;
+                const threshold = getThreshold(it.unit);
                 const isLow = parseFloat(it.quantity) < threshold;
                 if (isLow) lowStockCount++;
                 
@@ -726,7 +740,7 @@ function renderInventory(w) {
         if (alertBox) {
             if (lowStockCount > 0) {
                 alertBox.style.display = 'block';
-                if(alertTxt) alertTxt.textContent = `تنبيه: يوجد ${lowStockCount} صنف تجاوز حد النواقص (${threshold})! يرجى مراجعتها وتوفيرها.`;
+                if(alertTxt) alertTxt.textContent = `تنبيه: يوجد ${lowStockCount} صنف تجاوز حد النواقص! يرجى مراجعتها وتوفيرها.`;
             } else {
                 alertBox.style.display = 'none';
             }
@@ -884,6 +898,7 @@ window.addItem = () => {
                                     <option>عدد</option>
                                     <option>لتر</option>
                                     <option>كيلو</option>
+                                    <option>جرام</option>
                                 </select>
                             </td>
                             <td><button class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-times"></i></button></td>
@@ -1032,6 +1047,7 @@ window.editItem = async (key) => {
                                 <option value="عدد" ${it.unit === 'عدد' ? 'selected' : ''}>عدد</option>
                                 <option value="لتر" ${it.unit === 'لتر' ? 'selected' : ''}>لتر</option>
                                 <option value="كيلو" ${it.unit === 'كيلو' ? 'selected' : ''}>كيلو</option>
+                                <option value="جرام" ${it.unit === 'جرام' ? 'selected' : ''}>جرام</option>
                             </select>
                         </div>
                     </div>
@@ -1098,11 +1114,30 @@ function renderSettings(container) {
         <div class="settings-grid">
 
             <div class="table-container" style="padding:30px;">
-                <h3><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> حد تنبيه النواقص</h3>
-                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">سيظهر التنبيه عند وصول كمية أي صنف لهذا الرقم أو أقل</p>
-                <input type="number" id="set-threshold" class="form-control" value="${appSettings.lowStockThreshold || 1}" min="0">
-                <button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:15px;">
-                    <i class="fa-solid fa-floppy-disk"></i> حفظ
+                <h3><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> حدود تنبيه النواقص</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">تحكم في حد التنبيه لكل وحدة على حدة</p>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>العدد العام</label>
+                        <input type="number" id="set-threshold" class="form-control" value="${appSettings.lowStockThreshold || 1}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>حد الكيلو</label>
+                        <input type="number" id="set-threshold-kilo" class="form-control" value="${appSettings.thresholdKilo || 1}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>حد اللتر</label>
+                        <input type="number" id="set-threshold-liter" class="form-control" value="${appSettings.thresholdLiter || 1}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>حد الجرام</label>
+                        <input type="number" id="set-threshold-gram" class="form-control" value="${appSettings.thresholdGram || 100}" min="0">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="saveSet()" style="width:100%; margin-top:20px;">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات التنبيه
                 </button>
             </div>
 
@@ -1142,8 +1177,19 @@ function renderSettings(container) {
 
     window.saveSet = async function() {
         const val = parseFloat(document.getElementById('set-threshold').value);
-        await db.ref('settings/general').update({ lowStockThreshold: val });
-        appSettings.lowStockThreshold = val;
+        const kilo = parseFloat(document.getElementById('set-threshold-kilo').value);
+        const liter = parseFloat(document.getElementById('set-threshold-liter').value);
+        const gram = parseFloat(document.getElementById('set-threshold-gram').value);
+        
+        const newSettings = { 
+            lowStockThreshold: val, 
+            thresholdKilo: kilo, 
+            thresholdLiter: liter,
+            thresholdGram: gram
+        };
+        
+        await db.ref('settings/general').update(newSettings);
+        Object.assign(appSettings, newSettings);
         showNotification('تم حفظ إعدادات النواقص بنجاح');
     };
 
@@ -1195,13 +1241,15 @@ function initChart() {
 
 function loadLowStockList() {
     const list = document.getElementById('low-stock-list'); if(!list) return;
-    const threshold = parseFloat(appSettings.lowStockThreshold) || 1;
     db.ref('inventory').on('value', (snap) => {
         list.innerHTML = '';
         const banner = document.getElementById('mgr-low-stock-banner');
         
         if(snap.exists()) {
-            const items = Object.values(snap.val()).filter(it => parseFloat(it.quantity) < threshold);
+            const items = Object.values(snap.val()).filter(it => {
+                const threshold = getThreshold(it.unit);
+                return parseFloat(it.quantity) < threshold;
+            });
             
             if(items.length === 0) {
                 list.innerHTML = `<div style="color:#10b981; text-align:center; padding:10px;"><i class="fa-solid fa-circle-check"></i> لا توجد نواقص</div>`;
