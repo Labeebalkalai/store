@@ -90,6 +90,75 @@ function updateDateTime() {
     if(el) el.innerHTML = `<i class="fa-regular fa-calendar-days"></i> ${new Date().toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric', weekday:'long'})} - ${new Date().toLocaleTimeString('ar-EG')}`;
 }
 
+// Global state for transactions listener
+let _transactionsListener = null;
+
+window.loadTableData = function(filter, p) {
+    const tbody = document.getElementById(`${p}-tbody`); 
+    if(!tbody) return;
+
+    // Remove existing listener if any to prevent leaks and multiple updates
+    if (_transactionsListener) {
+        db.ref('transactions').off('value', _transactionsListener);
+    }
+
+    _transactionsListener = db.ref('transactions').on('value', (snap) => {
+        const currentTbody = document.getElementById(`${p}-tbody`);
+        if(!currentTbody) return; // Exit if element is no longer in DOM
+
+        currentTbody.innerHTML = '';
+        let counts = {purchases:0, sales:0, returns:0, damaged:0};
+        
+        if (snap.exists() && snap.val()) {
+            let rows = []; 
+            const data = snap.val();
+            
+            Object.keys(data).forEach(type => { 
+                if (data[type] && typeof data[type] === 'object') {
+                    Object.keys(data[type]).forEach(id => {
+                        const trans = data[type][id];
+                        if (counts.hasOwnProperty(type)) counts[type] += 1;
+                        if (!filter || type === filter) rows.push({ ...trans, typeKey: type }); 
+                    });
+                }
+            });
+            
+            // Update stat counters
+            Object.keys(counts).forEach(k => {
+                const el = document.getElementById(`${p}-count-${k}`);
+                if(el) el.innerText = counts[k];
+            });
+
+            if (rows.length === 0) {
+                currentTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">لا توجد عمليات مسجلة حالياً</td></tr>';
+            } else {
+                rows.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(r => {
+                    const map = {purchases:'شراء', sales:'استهلاك', returns:'مرتجع', damaged:'تالف'};
+                    const badgeMap = {purchases:'primary', sales:'success', returns:'warning', damaged:'danger'};
+                    currentTbody.innerHTML += `
+                        <tr>
+                            <td><span class="badge badge-${badgeMap[r.typeKey] || 'outline'}">${map[r.typeKey] || r.typeKey}</span></td>
+                            <td><span class="badge badge-outline">${r.itemNumber}</span></td>
+                            <td>${r.name}</td>
+                            <td style="font-weight:bold;">${r.quantity}</td>
+                            <td>${r.unit}</td>
+                            <td>${r.day||'---'}</td>
+                            <td>${r.date}</td>
+                            <td>${r.time}</td>
+                        </tr>`;
+                });
+            }
+        } else {
+            // Reset counters if no data
+            Object.keys(counts).forEach(k => {
+                const el = document.getElementById(`${p}-count-${k}`);
+                if(el) el.innerText = '0';
+            });
+            currentTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">لا توجد عمليات مسجلة حالياً</td></tr>';
+        }
+    });
+};
+
 window.showNotification = (msg, type = 'success') => {
     const container = document.getElementById('notification-container'); if(!container) return;
     const notif = document.createElement('div'); notif.className = `notification ${type}`;
@@ -134,8 +203,14 @@ function getThreshold(unit) {
     return parseFloat(appSettings.lowStockThreshold) || 1;
 }
 
+// Global state for inventory listener
+let _inventoryStatusListener = null;
+
 function updateLowStockStatus() {
-    db.ref('inventory').on('value', (snap) => {
+    if (_inventoryStatusListener) {
+        db.ref('inventory').off('value', _inventoryStatusListener);
+    }
+    _inventoryStatusListener = db.ref('inventory').on('value', (snap) => {
         let count = 0;
         if(snap.exists()) {
             Object.values(snap.val()).forEach(it => {
@@ -143,7 +218,8 @@ function updateLowStockStatus() {
                 if(parseFloat(it.quantity) < threshold) count++;
             });
         }
-        const b = document.getElementById('low-stock-badge'); if(b) { b.style.display = count > 0 ? 'flex' : 'none'; b.innerText = count; }
+        const b = document.getElementById('low-stock-badge'); 
+        if(b) { b.style.display = count > 0 ? 'flex' : 'none'; b.innerText = count; }
     });
 }
 
@@ -157,7 +233,7 @@ function renderDashboardCommon(container, prefix) {
             <div class="print-title">
                 <h1>مطعم أمواج الصياد</h1>
                 <h3>تقرير العمليات الموثق</h3>
-                <p class="print-date">${new Date().toLocaleString('ar-YE')}</p>
+                <p id="${prefix}-print-date" class="print-date">${new Date().toLocaleString('ar-YE')}</p>
             </div>
         </div>
         <div class="dashboard-grid no-print">
@@ -231,7 +307,7 @@ function renderDashboardCommon(container, prefix) {
     `;
     
     container.appendChild(contentDiv);
-    loadTableData(null, prefix);
+    window.loadTableData(null, prefix);
     if(prefix === 'mgr') loadLowStockList();
     
     // Set current date in print header
@@ -239,47 +315,9 @@ function renderDashboardCommon(container, prefix) {
     if(dEl) dEl.innerText = new Date().toLocaleString('ar-EG');
 }
 
-function loadTableData(filter, p) {
-    const tbody = document.getElementById(`${p}-tbody`); if(!tbody) return;
-    db.ref('transactions').on('value', (snap) => {
-        tbody.innerHTML = '';
-        let counts = {purchases:0, sales:0, returns:0, damaged:0};
-        if (snap.exists() && snap.val()) {
-            let rows = []; 
-            Object.keys(snap.val()).forEach(type => { 
-                Object.keys(snap.val()[type]).forEach(id => {
-                    const trans = snap.val()[type][id];
-                    counts[type] += 1;
-                    if (!filter || type === filter) rows.push({ ...trans, typeKey: type }); 
-                });
-            });
-            
-            // Update stat counters
-            Object.keys(counts).forEach(k => {
-                const el = document.getElementById(`${p}-count-${k}`);
-                if(el) el.innerText = counts[k];
-            });
+// Combined with window.loadTableData above
 
-            rows.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(r => {
-                const map = {purchases:'شراء', sales:'استهلاك', returns:'مرتجع', damaged:'تالف'};
-                const badgeMap = {purchases:'primary', sales:'success', returns:'warning', damaged:'danger'};
-                tbody.innerHTML += `
-                    <tr>
-                        <td><span class="badge badge-${badgeMap[r.typeKey]}">${map[r.typeKey]}</span></td>
-                        <td><span class="badge badge-outline">${r.itemNumber}</span></td>
-                        <td>${r.name}</td>
-                        <td style="font-weight:bold;">${r.quantity}</td>
-                        <td>${r.unit}</td>
-                        <td>${r.day||'---'}</td>
-                        <td>${r.date}</td>
-                        <td>${r.time}</td>
-                    </tr>`;
-            });
-        }
-    });
-}
-
-function loadSection(section) {
+window.loadSection = function(section) {
     currentSection = section; const w = document.getElementById('contentWrapper'); if(!w) return;
     w.innerHTML = '<div style="text-align:center; padding:50px;"><i class="fa-solid fa-spinner fa-spin fa-3x"></i></div>';
     setTimeout(() => {
@@ -300,7 +338,7 @@ function loadSection(section) {
             case 'developer': renderDeveloper(w); break;
         }
     }, 100);
-}
+};
 
 function renderStorekeeper(w) {
     w.innerHTML = `
@@ -318,7 +356,7 @@ function renderStorekeeper(w) {
     <div class="storekeeper-actions no-print">
         <div class="action-card purchase" onclick="openInvModal('purchases', 'إضافة فاتورة شراء')">
             <i class="fa-solid fa-cart-plus"></i>
-            <h3>إضافة فاتورة شرا</h3>
+            <h3>إضافة فاتورة شراء</h3>
             <p>إضافة بضاعة جديدة للمخزن</p>
         </div>
         <div class="action-card sales" onclick="openInvModal('sales', 'إضافة فاتورة استهلاك')">
@@ -425,6 +463,14 @@ window.addInvRow = (isInventory = false) => {
                 <button type="button" class="btn btn-outline btn-sm" onclick="showInvPicker(this)" title="اختر من المخزن" style="padding:6px 10px; flex-shrink:0;"><i class="fa-solid fa-list"></i></button>
             </div>
             <div class="name-suggestions" style="display:none;"></div>
+        </td>
+        <td>
+            <select class="form-control i-cat">
+                <option value="عام">عام</option>
+                <option value="سمك" ${currentSection === 'fish' ? 'selected' : ''}>سمك</option>
+                <option value="مقبلات">مقبلات</option>
+                <option value="مشروبات">مشروبات</option>
+            </select>
         </td>
         <td><input type="number" class="form-control i-qty" value="${isInventory ? '0' : '1'}" min="0" step="0.1"></td>
         <td>
@@ -699,9 +745,15 @@ function renderInventory(w) {
     const dEl = document.getElementById('inv-print-date');
     if(dEl) dEl.innerText = new Date().toLocaleString('ar-EG');
     
-    db.ref('inventory').on('value', (snap) => {
-        if(currentSection !== 'inventory') return;
-        const tbody = document.getElementById('inventory-tbody'); if(!tbody) return;
+    // Use a single listener for inventory table
+    if (window._inventoryTableListener) {
+        db.ref('inventory').off('value', window._inventoryTableListener);
+    }
+
+    window._inventoryTableListener = db.ref('inventory').on('value', (snap) => {
+        const tbody = document.getElementById('inventory-tbody'); 
+        if(!tbody || currentSection !== 'inventory') return;
+
         tbody.innerHTML = '';
         let lowStockCount = 0;
         
@@ -745,7 +797,6 @@ function renderInventory(w) {
                 alertBox.style.display = 'none';
             }
         }
-
     });
 }
 
@@ -1239,10 +1290,21 @@ function initChart() {
     });
 }
 
+let _lowStockListListener = null;
+
 function loadLowStockList() {
-    const list = document.getElementById('low-stock-list'); if(!list) return;
-    db.ref('inventory').on('value', (snap) => {
-        list.innerHTML = '';
+    const list = document.getElementById('low-stock-list'); 
+    if(!list) return;
+
+    if (_lowStockListListener) {
+        db.ref('inventory').off('value', _lowStockListListener);
+    }
+
+    _lowStockListListener = db.ref('inventory').on('value', (snap) => {
+        const currentList = document.getElementById('low-stock-list');
+        if(!currentList) return;
+
+        currentList.innerHTML = '';
         const banner = document.getElementById('mgr-low-stock-banner');
         
         if(snap.exists()) {
@@ -1252,10 +1314,10 @@ function loadLowStockList() {
             });
             
             if(items.length === 0) {
-                list.innerHTML = `<div style="color:#10b981; text-align:center; padding:10px;"><i class="fa-solid fa-circle-check"></i> لا توجد نواقص</div>`;
+                currentList.innerHTML = `<div style="color:#10b981; text-align:center; padding:10px;"><i class="fa-solid fa-circle-check"></i> لا توجد نواقص</div>`;
                 if(banner) banner.style.display = 'none';
             } else {
-                items.forEach(it => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(0,0,0,0.05)"><span>${it.name}</span><span class="badge badge-danger">${it.quantity}</span></div>`; });
+                items.forEach(it => { currentList.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid rgba(0,0,0,0.05)"><span>${it.name}</span><span class="badge badge-danger">${it.quantity}</span></div>`; });
                 if(banner) {
                     banner.style.display = 'block';
                     const txt = document.getElementById('mgr-low-stock-text');
