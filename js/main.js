@@ -808,63 +808,36 @@ function renderInventory(w) {
 }
 
 window.exportToPDF = async (elementId, filename) => {
-    const originalElement = document.getElementById(elementId);
-    if (!originalElement) return showNotification('خطأ: لم يتم العثور على المحتوى', 'error');
-
     if (typeof html2pdf === 'undefined') {
         showNotification('جاري الطباعة المباشرة...', 'warning');
         window.print();
         return;
     }
 
+    const btn = document.activeElement;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn && btn.tagName === 'BUTTON') {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تجهيز PDF...';
+    }
+
     showNotification('جاري تجهيز نسخة الـ PDF...', 'info');
 
     try {
-        // 1. إنشاء نسخة معزولة للطباعة
-        const printClone = originalElement.cloneNode(true);
-        printClone.style.backgroundColor = "white";
-        printClone.style.width = "297mm"; // عرض A4 الأفقي (Landscape)
-        printClone.style.minHeight = "210mm";
+        // إعداد الصفحة الحية للالتقاط بدلاً من النسخ الوهمي (النسخ الوهمي يفشل في بعض جوالات الأندرويد)
+        document.body.classList.add('is-exporting');
         
-        // تنظيف النسخة
-        const selectorsToRemove = '.no-print, button, .action-btns, .search-box, .stat-card, .charts-row';
-        printClone.querySelectorAll(selectorsToRemove).forEach(el => el.remove());
-
-        // ضمان ظهور الشعار والترويسة
-        const header = printClone.querySelector('.print-header');
-        if (header) {
-            header.style.display = 'flex';
-            header.style.visibility = 'visible';
-            header.style.opacity = '1';
-        }
-
-        const logo = printClone.querySelector('.print-header img');
-        if (logo && typeof LOGO_BASE64 !== 'undefined') {
+        const originalBodyWidth = document.body.style.width;
+        document.body.style.width = '1122px'; // عرض A4 الأفقي Landscape
+        
+        // ضمان تحميل الشعار إذا لزم الأمر
+        const logo = document.querySelector('.print-header img');
+        if (logo && typeof LOGO_BASE64 !== 'undefined' && !logo.src.startsWith('data:')) {
             logo.src = LOGO_BASE64;
         }
 
-        // 2. وضع النسخة في حاوية "شبه مرئية" لضمان التقاطها من المتصفح
-        const container = document.createElement('div');
-        // استخدام opacity و position بدلاً من الإزاحة الكبيرة لتجنب قص الصورة في بعض أجهزة الأندرويد
-        container.style.cssText = 'position:absolute; top:0; left:0; width:297mm; background:white; z-index:-9999; direction:rtl; opacity:0; pointer-events:none;';
-        container.appendChild(printClone);
-        document.body.appendChild(container);
-
-        // فرض تنسيق الجدول
-        printClone.querySelectorAll('table').forEach(tbl => {
-            tbl.style.width = '100%';
-            tbl.style.borderCollapse = 'collapse';
-            tbl.querySelectorAll('th, td').forEach(c => {
-                c.style.border = '1px solid #000';
-                c.style.color = 'black';
-                c.style.padding = '8px';
-                c.style.textAlign = 'center';
-                c.style.fontSize = '10pt';
-            });
-        });
-
-        // انتظار بسيط للتأكد من رندرة المتصفح للنسخة الجديدة
-        await new Promise(r => setTimeout(r, 1000));
+        // انتظار بسيط للتأكد من رندرة المتصفح للنسخة الحية
+        await new Promise(r => setTimeout(r, 600));
 
         const opt = {
             margin: [10, 10, 10, 10], // هوامش لترتيب التقرير
@@ -874,21 +847,33 @@ window.exportToPDF = async (elementId, filename) => {
                 scale: 2, 
                 useCORS: true, 
                 backgroundColor: '#ffffff',
-                scrollY: 0, // إجبار الالتقاط من أعلى العنصر
+                scrollY: 0, 
                 scrollX: 0,
-                windowWidth: 1122 // متوافق مع عرض Landscape
+                windowWidth: 1122
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // الوضع الأفقي لضمان ظهور الجداول بالكامل
         };
 
-        // 3. التوليد والحفظ
-        await html2pdf().set(opt).from(container).save();
+        // التوليد والحفظ من الصفحة مباشرة
+        await html2pdf().set(opt).from(document.body).save();
         
-        // 4. التنظيف
-        document.body.removeChild(container);
+        // التنظيف واستعادة الوضع الطبيعي
+        document.body.classList.remove('is-exporting');
+        document.body.style.width = originalBodyWidth;
+        if (btn && btn.tagName === 'BUTTON') {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+
         showNotification('تم تحميل الملف بنجاح ✓', 'success');
     } catch (err) {
         console.error('PDF Error:', err);
+        document.body.classList.remove('is-exporting');
+        document.body.style.width = '';
+        if (btn && btn.tagName === 'BUTTON') {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
         showNotification('حدث خطأ، يرجى استخدام زر "طباعة" المباشرة', 'error');
     }
 };

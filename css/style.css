@@ -1151,9 +1151,23 @@ select.form-control {
 
 /* Helper for PDF generation */
 .is-exporting .print-header { display: flex !important; }
-.is-exporting .no-print { display: none !important; }
-.is-exporting .app-container { display: block !important; }
-.is-exporting .main-content { margin: 0 !important; width: 100% !important; }
+.is-exporting .no-print, 
+.is-exporting .sidebar, 
+.is-exporting .nav-item, 
+.is-exporting .actions-bar, 
+.is-exporting .btn, 
+.is-exporting .search-box, 
+.is-exporting .top-header,
+.is-exporting .stat-card,
+.is-exporting .charts-row { 
+    display: none !important; 
+}
+.is-exporting .app-container { display: block !important; background: white !important; }
+.is-exporting .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
+.is-exporting .table-container { box-shadow: none !important; border: none !important; margin: 0; padding: 0; }
+.is-exporting table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
+.is-exporting th, .is-exporting td { border: 1px solid #000 !important; padding: 8px !important; text-align: center !important; font-size: 10pt !important; color: black !important; }
+.is-exporting th { background: #f8f9fa !important; }
 
 /* Feature Styles */
 .nav-badge {
