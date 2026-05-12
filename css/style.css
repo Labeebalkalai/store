@@ -435,10 +435,13 @@ th, td {
 }
 
 th {
-    background-color: rgba(0,0,0,0.2);
+    background-color: #1e293b; /* Solid color for sticky header visibility */
     font-weight: 600;
     color: var(--text-muted);
     font-size: 0.95rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 tr:last-child td {
@@ -475,10 +478,14 @@ tr:hover td {
     border-radius: var(--border-radius);
     width: 100%;
     max-width: 500px;
-    padding: 30px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
     transform: translateY(20px);
     transition: var(--transition);
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    overflow: hidden;
 }
 
 .modal-overlay.active .modal-content {
@@ -489,9 +496,29 @@ tr:hover td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 15px;
+    padding: 20px 25px;
+    flex-shrink: 0;
+}
+
+.modal-body {
+    padding: 20px 25px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) rgba(0,0,0,0.1);
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-body::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
 }
 
 .modal-title {
@@ -793,7 +820,10 @@ select.form-control {
 .input-table th {
     font-size: 0.8rem;
     padding: 8px;
-    background: rgba(255,255,255,0.05);
+    background: #111827;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .input-table td {
@@ -1362,11 +1392,20 @@ canvas {
         max-width: 100% !important;
         width: 100% !important;
         border-radius: 20px 20px 0 0 !important;
-        padding: 20px !important;
+        padding: 0 !important;
         max-height: 92vh !important;
-        overflow-y: auto !important;
         margin: 0 !important;
         transform: translateY(30px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .modal-header {
+        padding: 15px 20px !important;
+    }
+
+    .modal-body {
+        padding: 15px 20px 80px !important; /* Extra padding for bottom nav */
     }
 
     .modal-overlay.active .modal-content {

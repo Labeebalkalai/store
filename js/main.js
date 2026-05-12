@@ -453,6 +453,7 @@ window.openInvModal = async (type, title) => {
 
 window.addInvRow = (isInventory = false) => {
     const tbody = document.querySelector('#inv-rows tbody');
+    if (!tbody) return;
     const r = document.createElement('tr'); 
     r.className = 'inv-row';
     r.innerHTML = `
@@ -484,6 +485,12 @@ window.addInvRow = (isInventory = false) => {
         <td><button class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-times"></i></button></td>
     `;
     tbody.appendChild(r);
+    
+    // Auto-scroll to bottom
+    const modalBody = tbody.closest('.modal-body');
+    if (modalBody) {
+        modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
+    }
 };
 
 window.autoFillRow = async (input) => {
