@@ -823,8 +823,8 @@ window.exportToPDF = async (elementId, filename) => {
         // 1. إنشاء نسخة معزولة للطباعة
         const printClone = originalElement.cloneNode(true);
         printClone.style.backgroundColor = "white";
-        printClone.style.width = "210mm"; // عرض A4
-        printClone.style.minHeight = "297mm";
+        printClone.style.width = "297mm"; // عرض A4 الأفقي (Landscape)
+        printClone.style.minHeight = "210mm";
         
         // تنظيف النسخة
         const selectorsToRemove = '.no-print, button, .action-btns, .search-box, .stat-card, .charts-row';
@@ -845,8 +845,8 @@ window.exportToPDF = async (elementId, filename) => {
 
         // 2. وضع النسخة في حاوية "شبه مرئية" لضمان التقاطها من المتصفح
         const container = document.createElement('div');
-        // نضعها في مكان بعيد جداً لليسار ولكن بـ top:0 لضمان صحة الإحداثيات
-        container.style.cssText = 'position:fixed; top:0; left:-10000px; width:210mm; background:white; z-index:-9999; direction:rtl; opacity:1;';
+        // استخدام opacity و position بدلاً من الإزاحة الكبيرة لتجنب قص الصورة في بعض أجهزة الأندرويد
+        container.style.cssText = 'position:absolute; top:0; left:0; width:297mm; background:white; z-index:-9999; direction:rtl; opacity:0; pointer-events:none;';
         container.appendChild(printClone);
         document.body.appendChild(container);
 
@@ -867,7 +867,7 @@ window.exportToPDF = async (elementId, filename) => {
         await new Promise(r => setTimeout(r, 1000));
 
         const opt = {
-            margin: 0,
+            margin: [10, 10, 10, 10], // هوامش لترتيب التقرير
             filename: `${filename}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { 
@@ -876,9 +876,9 @@ window.exportToPDF = async (elementId, filename) => {
                 backgroundColor: '#ffffff',
                 scrollY: 0, // إجبار الالتقاط من أعلى العنصر
                 scrollX: 0,
-                windowWidth: 1000
+                windowWidth: 1122 // متوافق مع عرض Landscape
             },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // الوضع الأفقي لضمان ظهور الجداول بالكامل
         };
 
         // 3. التوليد والحفظ

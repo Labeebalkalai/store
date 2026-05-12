@@ -1111,24 +1111,28 @@ select.form-control {
 }
 
 @media print {
-    .no-print, .sidebar, .nav-item, .actions-bar, .btn, .search-box, .top-header {
+    @page { size: landscape; margin: 10mm; }
+
+    .no-print, .sidebar, .nav-item, .actions-bar, .btn, .search-box, .top-header, .stat-card, .charts-row {
         display: none !important;
     }
+    
     .print-header {
         display: flex !important;
     }
-    body { background: white !important; color: black !important; }
-    .table-container { box-shadow: none !important; border: 1px solid #ddd !important; }
-    table { width: 100% !important; border-collapse: collapse !important; }
-    th, td { border: 1px solid #ddd !important; padding: 10px !important; text-align: center !important; }
-    th { background: #f8f9fa !important; }
-}
-
-/* Helper for PDF generation */
-.is-exporting .print-header { display: flex !important; }
-.is-exporting .no-print { display: none !important; }
-.is-exporting .app-container { display: block !important; }
-.is-exporting .main-content { margin: 0 !important; width: 100% !important; }
+    
+    body { background: white !important; color: black !important; margin: 0; padding: 0; }
+    
+    .table-container { box-shadow: none !important; border: none !important; margin: 0; padding: 0; }
+    
+    table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; page-break-inside: auto !important; }
+    
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+    
+    th, td { border: 1px solid #000 !important; padding: 8px !important; text-align: center !important; font-size: 10pt !important; color: black !important; }
+    
+    th { background: #f8f9fa !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
     .badge {
         border: 1px solid #999 !important;
@@ -1140,8 +1144,16 @@ select.form-control {
 
     * {
         direction: rtl !important;
+        animation: none !important;
+        transition: none !important;
     }
 }
+
+/* Helper for PDF generation */
+.is-exporting .print-header { display: flex !important; }
+.is-exporting .no-print { display: none !important; }
+.is-exporting .app-container { display: block !important; }
+.is-exporting .main-content { margin: 0 !important; width: 100% !important; }
 
 /* Feature Styles */
 .nav-badge {
