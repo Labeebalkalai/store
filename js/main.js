@@ -1312,52 +1312,98 @@ function loadLowStockList() {
 
 function renderDeveloper(c) { 
     c.innerHTML = `
-        <div class="developer-section fade-in">
-            <div class="dev-card">
-                <div class="dev-glow"></div>
-                <div class="dev-avatar-wrapper">
-                    <img src="dev.jpg.jpeg" class="dev-photo" alt="Developer">
-                    <div class="status-indicator"></div>
-                </div>
-                <h2 class="dev-name">لبيب محفوظ الكلعي</h2>
-                <p class="dev-title">مطور نظم برمجية وخبير قواعد بيانات</p>
-                
-                <div class="dev-info">
-                    <div class="info-item">
-                        <i class="fa-solid fa-phone-volume"></i>
-                        <span>00966546117271</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-envelope"></i>
-                        <span>labib@example.com</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <span>المملكة العربية السعودية</span>
-                    </div>
-                </div>
+        <div class="dev-pro-wrapper fade-in">
 
-                <div class="dev-skills">
-                    <span class="skill-badge">Frontend</span>
-                    <span class="skill-badge">Firebase</span>
-                    <span class="skill-badge">ERP Systems</span>
-                </div>
-
-                <div class="dev-actions">
-                    <a href="https://wa.me/966546117271" class="whatsapp-btn">
-                        <i class="fa-brands fa-whatsapp"></i>
-                        <span>تواصل عبر واتساب</span>
-                    </a>
-                </div>
-                
-                <div class="dev-footer">
-                    <p>تم تطوير هذا النظام بأحدث التقنيات لضمان السرعة والأمان</p>
-                    <div class="social-links">
-                        <i class="fa-brands fa-linkedin"></i>
-                        <i class="fa-brands fa-github"></i>
-                        <i class="fa-brands fa-twitter"></i>
+            <!-- Hero Section -->
+            <div class="dev-hero">
+                <div class="dev-hero-bg"></div>
+                <div class="dev-hero-content">
+                    <div class="dev-avatar-ring">
+                        <img src="dev.jpg.jpeg" class="dev-photo" alt="Developer">
+                        <div class="dev-online-badge"><i class="fa-solid fa-circle"></i></div>
+                    </div>
+                    <h1 class="dev-pro-name">لبيب محفوظ الكلعي</h1>
+                    <p class="dev-pro-role"><i class="fa-solid fa-code"></i> Full-Stack Developer & ERP Specialist</p>
+                    <div class="dev-badges-row">
+                        <span class="dev-badge-pill"><i class="fa-brands fa-html5"></i> HTML5</span>
+                        <span class="dev-badge-pill"><i class="fa-brands fa-css3-alt"></i> CSS3</span>
+                        <span class="dev-badge-pill"><i class="fa-brands fa-js"></i> JavaScript</span>
+                        <span class="dev-badge-pill"><i class="fa-solid fa-fire"></i> Firebase</span>
+                        <span class="dev-badge-pill"><i class="fa-solid fa-database"></i> ERP Systems</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="dev-stats-row">
+                <div class="dev-stat-card">
+                    <span class="dev-stat-number">٥+</span>
+                    <span class="dev-stat-label">سنوات خبرة</span>
+                </div>
+                <div class="dev-stat-card">
+                    <span class="dev-stat-number">٢٠+</span>
+                    <span class="dev-stat-label">مشروع مُنجز</span>
+                </div>
+                <div class="dev-stat-card">
+                    <span class="dev-stat-number">١٠٠٪</span>
+                    <span class="dev-stat-label">رضا العملاء</span>
+                </div>
+            </div>
+
+            <!-- Info & Contact -->
+            <div class="dev-info-grid">
+                <div class="dev-info-card">
+                    <div class="dev-info-icon"><i class="fa-solid fa-user-tie"></i></div>
+                    <div>
+                        <p class="dev-info-label">المطور</p>
+                        <p class="dev-info-value">لبيب محفوظ الكلعي</p>
+                    </div>
+                </div>
+                <div class="dev-info-card">
+                    <div class="dev-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+                    <div>
+                        <p class="dev-info-label">الموقع</p>
+                        <p class="dev-info-value">المملكة العربية السعودية</p>
+                    </div>
+                </div>
+                <div class="dev-info-card">
+                    <div class="dev-info-icon" style="background: linear-gradient(135deg, #25D366, #128C7E);"><i class="fa-brands fa-whatsapp"></i></div>
+                    <div>
+                        <p class="dev-info-label">واتساب</p>
+                        <p class="dev-info-value">00966546117271</p>
+                    </div>
+                </div>
+                <div class="dev-info-card">
+                    <div class="dev-info-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fa-solid fa-star"></i></div>
+                    <div>
+                        <p class="dev-info-label">التخصص</p>
+                        <p class="dev-info-value">أنظمة إدارة المخازن والـ ERP</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About -->
+            <div class="dev-about-card">
+                <h3><i class="fa-solid fa-circle-info"></i> عن المطور</h3>
+                <p>مطور برمجيات متخصص في بناء أنظمة إدارة الأعمال والمخازن باستخدام أحدث تقنيات الويب. يجمع بين الخبرة التقنية والفهم العميق لاحتياجات الشركات لتقديم حلول برمجية متكاملة وعالية الكفاءة.</p>
+            </div>
+
+            <!-- CTA Buttons -->
+            <div class="dev-cta-row">
+                <a href="https://wa.me/966546117271" class="dev-cta-btn dev-cta-whatsapp" target="_blank">
+                    <i class="fa-brands fa-whatsapp"></i>
+                    <span>تواصل عبر واتساب</span>
+                </a>
+                <a href="tel:+966546117271" class="dev-cta-btn dev-cta-phone">
+                    <i class="fa-solid fa-phone"></i>
+                    <span>اتصال مباشر</span>
+                </a>
+            </div>
+
+            <!-- Footer -->
+            <div class="dev-pro-footer">
+                <p><i class="fa-solid fa-shield-halved"></i> تم تطوير هذا النظام بأحدث التقنيات لضمان الأمان والسرعة</p>
+                <p class="dev-version">نظام إدارة المخزن &mdash; الإصدار 3.0</p>
             </div>
         </div>
     `; 
