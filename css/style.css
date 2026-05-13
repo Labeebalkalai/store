@@ -1150,14 +1150,27 @@ select.form-control {
 }
 
 /* Helper for PDF generation */
-body.is-exporting {
+html.is-exporting, body.is-exporting {
     background: white !important;
     color: black !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+    width: 1122px !important;
+    min-width: 1122px !important;
+    max-width: 1122px !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
 }
 
-.is-exporting .print-header { display: flex !important; }
+.is-exporting .print-header { 
+    display: flex !important; 
+    width: 100% !important; 
+    align-items: center !important; 
+    justify-content: space-between !important; 
+}
+.is-exporting .print-header img { display: block !important; max-width: 150px !important; }
+.is-exporting .print-title { display: block !important; text-align: right !important; }
+
 .is-exporting .no-print, 
 .is-exporting .sidebar, 
 .is-exporting .nav-item, 
@@ -1170,13 +1183,47 @@ body.is-exporting {
 .is-exporting .notification-container { 
     display: none !important; 
 }
-.is-exporting .app-container { display: block !important; background: white !important; }
-.is-exporting .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
-.is-exporting .content-wrapper { padding: 10px !important; overflow: visible !important; }
-.is-exporting .table-container { box-shadow: none !important; border: none !important; margin: 0; padding: 0; background: white !important; }
-.is-exporting table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; background: white !important; }
-.is-exporting th, .is-exporting td { border: 1px solid #000 !important; padding: 8px !important; text-align: center !important; font-size: 10pt !important; color: black !important; }
-.is-exporting td { background: white !important; }
+
+.is-exporting .app-container, 
+.is-exporting .main-content, 
+.is-exporting .content-wrapper { 
+    display: block !important; 
+    background: white !important; 
+    width: 1122px !important; 
+    min-width: 1122px !important;
+    max-width: 1122px !important;
+    margin: 0 !important; 
+    padding: 0 !important; 
+    overflow: visible !important;
+    flex: none !important;
+}
+
+.is-exporting .table-container { 
+    box-shadow: none !important; 
+    border: none !important; 
+    margin: 0 !important; 
+    padding: 10px !important; 
+    background: white !important; 
+    width: 100% !important; 
+    overflow: visible !important;
+}
+
+.is-exporting table { 
+    width: 100% !important; 
+    border-collapse: collapse !important; 
+    table-layout: fixed !important; 
+    background: white !important; 
+}
+
+.is-exporting th, .is-exporting td { 
+    border: 1px solid #000 !important; 
+    padding: 8px !important; 
+    text-align: center !important; 
+    font-size: 10pt !important; 
+    color: black !important; 
+    background: white !important; 
+}
+
 .is-exporting th { background: #e2e2e2 !important; font-weight: bold !important; }
 .is-exporting * { animation: none !important; transition: none !important; }
 

@@ -825,6 +825,7 @@ window.exportToPDF = async (elementId, filename) => {
 
     try {
         // إعداد الصفحة الحية للالتقاط بدلاً من النسخ الوهمي (النسخ الوهمي يفشل في بعض جوالات الأندرويد)
+        document.documentElement.classList.add('is-exporting');
         document.body.classList.add('is-exporting');
         
         const originalBodyWidth = document.body.style.width;
@@ -858,6 +859,7 @@ window.exportToPDF = async (elementId, filename) => {
         await html2pdf().set(opt).from(document.body).save();
         
         // التنظيف واستعادة الوضع الطبيعي
+        document.documentElement.classList.remove('is-exporting');
         document.body.classList.remove('is-exporting');
         document.body.style.width = originalBodyWidth;
         if (btn && btn.tagName === 'BUTTON') {
@@ -868,6 +870,7 @@ window.exportToPDF = async (elementId, filename) => {
         showNotification('تم تحميل الملف بنجاح ✓', 'success');
     } catch (err) {
         console.error('PDF Error:', err);
+        document.documentElement.classList.remove('is-exporting');
         document.body.classList.remove('is-exporting');
         document.body.style.width = '';
         if (btn && btn.tagName === 'BUTTON') {
