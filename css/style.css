@@ -1149,83 +1149,106 @@ select.form-control {
     }
 }
 
-/* Helper for PDF generation */
-html.is-exporting, body.is-exporting {
+/* --- إصلاحات خاصة لوضع تصدير PDF (نفس طريقة مخزن السمك) --- */
+body.is-pdf-generating {
     background: white !important;
     color: black !important;
     width: 1122px !important;
-    min-width: 1122px !important;
-    max-width: 1122px !important;
-    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
     display: block !important;
 }
 
-.is-exporting .print-header { 
-    display: flex !important; 
-    width: 100% !important; 
-    align-items: center !important; 
-    justify-content: space-between !important; 
-}
-.is-exporting .print-header img { display: block !important; max-width: 150px !important; }
-.is-exporting .print-title { display: block !important; text-align: right !important; }
-
-.is-exporting .no-print, 
-.is-exporting .sidebar, 
-.is-exporting .nav-item, 
-.is-exporting .actions-bar, 
-.is-exporting .btn, 
-.is-exporting .search-box, 
-.is-exporting .top-header,
-.is-exporting .stat-card,
-.is-exporting .charts-row,
-.is-exporting .notification-container { 
-    display: none !important; 
+body.is-pdf-generating * {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
-.is-exporting .app-container, 
-.is-exporting .main-content, 
-.is-exporting .content-wrapper { 
-    display: block !important; 
-    background: white !important; 
-    width: 1122px !important; 
-    min-width: 1122px !important;
-    max-width: 1122px !important;
-    margin: 0 !important; 
-    padding: 0 !important; 
+body.is-pdf-generating .sidebar,
+body.is-pdf-generating .top-header,
+body.is-pdf-generating .actions-bar,
+body.is-pdf-generating .header-tools,
+body.is-pdf-generating button,
+body.is-pdf-generating .search-box,
+body.is-pdf-generating .stat-card,
+body.is-pdf-generating .charts-row,
+body.is-pdf-generating .notification-container,
+body.is-pdf-generating .no-print {
+    display: none !important;
+}
+
+body.is-pdf-generating .print-header {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding-bottom: 15px !important;
+    margin-bottom: 20px !important;
+    border-bottom: 3px solid #1e40af !important;
+}
+
+body.is-pdf-generating .print-header img {
+    width: 120px !important;
+    height: auto !important;
+    display: block !important;
+}
+
+body.is-pdf-generating .app-container {
+    display: block !important;
+    background: white !important;
+}
+
+body.is-pdf-generating .main-content {
+    margin: 0 !important;
+    width: 1122px !important;
+    padding: 10px !important;
+    background: white !important;
+    height: auto !important;
     overflow: visible !important;
-    flex: none !important;
 }
 
-.is-exporting .table-container { 
-    box-shadow: none !important; 
-    border: none !important; 
-    margin: 0 !important; 
-    padding: 10px !important; 
-    background: white !important; 
-    width: 100% !important; 
+body.is-pdf-generating .content-wrapper {
+    overflow: visible !important;
+    padding: 10px !important;
+    height: auto !important;
+    background: white !important;
+}
+
+body.is-pdf-generating .table-container {
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
     overflow: visible !important;
 }
 
-.is-exporting table { 
-    width: 100% !important; 
-    border-collapse: collapse !important; 
-    table-layout: fixed !important; 
-    background: white !important; 
+body.is-pdf-generating table {
+    width: 100% !important;
+    border: 1px solid black !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    background: white !important;
 }
 
-.is-exporting th, .is-exporting td { 
-    border: 1px solid #000 !important; 
-    padding: 8px !important; 
-    text-align: center !important; 
-    font-size: 10pt !important; 
-    color: black !important; 
-    background: white !important; 
+body.is-pdf-generating th {
+    background: #e2e2e2 !important;
+    color: black !important;
+    border: 1px solid black !important;
+    font-weight: bold !important;
+    padding: 10px !important;
+    text-align: center !important;
+    font-size: 11pt !important;
 }
 
-.is-exporting th { background: #e2e2e2 !important; font-weight: bold !important; }
-.is-exporting * { animation: none !important; transition: none !important; }
+body.is-pdf-generating td {
+    color: black !important;
+    border: 1px solid black !important;
+    background: white !important;
+    padding: 10px !important;
+    text-align: center !important;
+    font-size: 11pt !important;
+}
 
 /* Feature Styles */
 .nav-badge {

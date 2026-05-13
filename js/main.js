@@ -814,12 +814,6 @@ window.exportToPDF = async (elementId, filename) => {
         return;
     }
 
-    const originalElement = document.getElementById(elementId);
-    if (!originalElement) {
-        showNotification('عذراً، لم يتم العثور على محتوى للطباعة', 'error');
-        return;
-    }
-
     const btn = document.activeElement;
     const originalText = btn ? btn.innerHTML : '';
     if (btn && btn.tagName === 'BUTTON') {
@@ -829,124 +823,47 @@ window.exportToPDF = async (elementId, filename) => {
 
     showNotification('جاري تجهيز نسخة الـ PDF...', 'info');
 
-    try {
-        // إنشاء حاوية مستقلة تماماً لحل مشكلة قص الشاشة في الأندرويد
-        const pdfWrapper = document.createElement('div');
-        pdfWrapper.id = 'pdf-export-wrapper';
-        // جعل الحاوية مرئية تماماً وتغطي الشاشة لكي يجبر الأندرويد على رسمها
-        pdfWrapper.style.cssText = 'position: absolute; top: 0; left: 0; width: 1122px; min-height: 100vh; background: white; z-index: 999999; direction: rtl; padding: 20px;';
-        
-        // استنساخ الترويسة والجدول فقط
-        const headerOriginal = originalElement.querySelector('.print-header');
-        const tableOriginal = originalElement.querySelector('table');
-        
-        if (headerOriginal) {
-            const headerClone = headerOriginal.cloneNode(true);
-            headerClone.style.display = 'flex';
-            headerClone.style.justifyContent = 'space-between';
-            headerClone.style.alignItems = 'center';
-            headerClone.style.borderBottom = '3px solid #1e40af';
-            headerClone.style.marginBottom = '20px';
-            headerClone.style.paddingBottom = '15px';
-            
-            const logo = headerClone.querySelector('img');
-            if (logo) {
-                logo.style.maxWidth = '120px';
-                if (typeof LOGO_BASE64 !== 'undefined') logo.src = LOGO_BASE64;
+    // تطبيق نفس طريقة مخزن السمك التي تعمل بنجاح
+    document.body.classList.add('is-pdf-generating');
+    const originalBodyWidth = document.body.style.width;
+    document.body.style.width = '1122px';
+
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${filename}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            windowWidth: 1122,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    setTimeout(() => {
+        html2pdf().set(opt).from(document.body).save().then(() => {
+            document.body.classList.remove('is-pdf-generating');
+            document.body.style.width = originalBodyWidth;
+            if (btn && btn.tagName === 'BUTTON') {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
-            pdfWrapper.appendChild(headerClone);
-        }
-
-        if (tableOriginal) {
-            const tableClone = tableOriginal.cloneNode(true);
-            tableClone.style.width = '100%';
-            tableClone.style.borderCollapse = 'collapse';
-            tableClone.style.tableLayout = 'fixed';
-            
-            // تنظيف الأزرار المخفية
-            tableClone.querySelectorAll('.no-print').forEach(el => el.remove());
-            
-            tableClone.querySelectorAll('th, td').forEach(cell => {
-                cell.style.border = '1px solid #000';
-                cell.style.padding = '10px';
-                cell.style.textAlign = 'center';
-                cell.style.fontSize = '12pt';
-                cell.style.color = 'black';
-                cell.style.background = 'white';
-            });
-            tableClone.querySelectorAll('th').forEach(th => {
-                th.style.background = '#e2e2e2';
-                th.style.fontWeight = 'bold';
-            });
-            pdfWrapper.appendChild(tableClone);
-        }
-
-        document.body.appendChild(pdfWrapper);
-
-        // تعديل الـ Viewport مؤقتاً لإجبار الأندرويد على رؤية الصفحة بعرض 1122 بكسل
-        let viewport = document.querySelector('meta[name="viewport"]');
-        let originalViewportContent = '';
-        if (viewport) {
-            originalViewportContent = viewport.content;
-            viewport.content = 'width=1122, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        } else {
-            viewport = document.createElement('meta');
-            viewport.name = 'viewport';
-            viewport.content = 'width=1122, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            document.head.appendChild(viewport);
-        }
-
-        // انتظار بسيط لضمان تحميل المتصفح للواجهة الجديدة والفيوبورت الجديد
-        await new Promise(r => setTimeout(r, 1000));
-
-        const opt = {
-            margin: [10, 10, 10, 10], 
-            filename: `${filename}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true,
-                backgroundColor: '#ffffff',
-                windowWidth: 1122,
-                scrollX: 0,
-                scrollY: 0,
-                x: 0
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-        };
-
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        
-        // التنظيف واستعادة الوضع
-        document.body.removeChild(pdfWrapper);
-        if (viewport) {
-            if (originalViewportContent) viewport.content = originalViewportContent;
-            else document.head.removeChild(viewport);
-        }
-
-        if (btn && btn.tagName === 'BUTTON') {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-
-        showNotification('تم تحميل الملف بنجاح ✓', 'success');
-    } catch (err) {
-        console.error('PDF Error:', err);
-        const wrapper = document.getElementById('pdf-export-wrapper');
-        if (wrapper) document.body.removeChild(wrapper);
-        
-        let viewport = document.querySelector('meta[name="viewport"]');
-        if (viewport && typeof originalViewportContent !== 'undefined') {
-            viewport.content = originalViewportContent;
-        }
-        
-        if (btn && btn.tagName === 'BUTTON') {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-        showNotification('حدث خطأ، يرجى المحاولة مرة أخرى', 'error');
-    }
+            showNotification('تم تحميل الملف بنجاح ✓', 'success');
+        }).catch(err => {
+            console.error('PDF Error:', err);
+            document.body.classList.remove('is-pdf-generating');
+            document.body.style.width = originalBodyWidth;
+            if (btn && btn.tagName === 'BUTTON') {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            showNotification('حدث خطأ، يرجى المحاولة مرة أخرى', 'error');
+        });
+    }, 500);
 };
 
 window.filterInv = () => {
