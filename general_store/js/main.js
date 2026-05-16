@@ -768,8 +768,12 @@ function renderInventory(w) {
             const items = [];
             Object.keys(snap.val()).forEach(key => items.push({ ...snap.val()[key], key }));
             
-            // Sort by timestamp (newest first)
-            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(it => {
+            // Sort by itemNumber (ascending)
+            items.sort((a, b) => {
+                const numA = parseFloat(a.itemNumber) || 0;
+                const numB = parseFloat(b.itemNumber) || 0;
+                return numA - numB;
+            }).forEach(it => {
                 const key = it.key;
                 const threshold = getThreshold(it.unit);
                 const isLow = parseFloat(it.quantity) < threshold;
