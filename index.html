@@ -2,116 +2,223 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="أمواج المخزن">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="description" content="نظام إدارة المخزن - مطعم أمواج الصياد">
-    <title>نظام إدارة المخزن - مطعم أمواج الصياد</title>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Fonts & Icons -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة أنظمة أمواج الصياد</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <script src="js/logo_base64.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #10b981;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: white;
+            font-family: 'Cairo', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
 
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=3">
+        .container {
+            text-align: center;
+            z-index: 10;
+            max-width: 1000px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #6366f1, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+        }
+
+        p {
+            color: #94a3b8;
+            font-size: 1.2rem;
+            margin-bottom: 50px;
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+        }
+
+        .portal-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: 0.4s;
+        }
+
+        .portal-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .portal-card:hover::before {
+            opacity: 1;
+        }
+
+        .icon-wrapper {
+            width: 100px;
+            height: 100px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            margin-bottom: 25px;
+            color: var(--primary);
+            transition: 0.4s;
+        }
+
+        .portal-card:hover .icon-wrapper {
+            transform: rotate(10deg) scale(1.1);
+            background: var(--primary);
+            color: white;
+        }
+
+        .fish-card .icon-wrapper {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .fish-card:hover .icon-wrapper {
+            background: #3b82f6;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin: 0 0 15px;
+        }
+
+        .description {
+            font-size: 1rem;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .btn-enter {
+            margin-top: 30px;
+            padding: 12px 30px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-weight: 700;
+            transition: 0.3s;
+        }
+
+        .portal-card:hover .btn-enter {
+            background: white;
+            color: black;
+        }
+
+        /* Animated Background Particles */
+        .particles {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.2;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0); opacity: 0.2; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+    </style>
 </head>
 <body>
 
-    <!-- Welcome Splash Screen -->
-    <div id="welcome-screen" class="welcome-overlay">
-        <div class="welcome-content">
-            <div class="welcome-logo-wrapper">
-                <img src="logo.png.jpeg" alt="Logo" class="welcome-logo">
-            </div>
-            <h1 class="welcome-title">أهلاً بك في نظام أمواج الصياد</h1>
-            <p class="welcome-subtitle">نظام الإدارة الذكي للمخازن والمستودعات</p>
-            <button class="welcome-btn" onclick="enterSystem()">
-                <span>دخول النظام</span>
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <h1>مجموعة أنظمة أمواج الصياد</h1>
+        <p>اختر النظام الذي ترغب في الدخول إليه</p>
+
+        <div class="portal-grid">
+            <!-- Fish Store Card -->
+            <a href="fish_store/index.html" class="portal-card fish-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-fish"></i>
+                </div>
+                <h2>نظام مخزن السمك</h2>
+                <div class="description">
+                    إدارة ثلاجات الفيبر والمحل، متابعة أوزان الأسماك، وعمليات التحويل والجرد اليومي.
+                </div>
+                <div class="btn-enter">دخول النظام</div>
+            </a>
+
+            <!-- General Store Card -->
+            <a href="general_store/index.html" class="portal-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-boxes-stacked"></i>
+                </div>
+                <h2>نظام المخزن العام</h2>
+                <div class="description">
+                    إدارة كافة أصناف المطعم، المستهلكات، النواقص، والتقارير الإدارية الشاملة للمخزون.
+                </div>
+                <div class="btn-enter">دخول النظام</div>
+            </a>
         </div>
     </div>
 
-    <div class="app-container">
-        <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo-container">
-                    <img src="logo.png.jpeg" alt="Logo" class="app-logo">
-                </div>
-                <h2>أمواج الصياد</h2>
-                <p>نظام إدارة المخزن</p>
-            </div>
-            
-            <ul class="nav-links">
-                <li class="nav-item active" data-section="manager">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>المدير</span>
-                </li>
-                <li class="nav-item" data-section="storekeeper">
-                    <i class="fa-solid fa-id-card-clip"></i>
-                    <span>أمين المخزن</span>
-                </li>
-                <li class="nav-item" data-section="inventory" id="nav-inventory">
-                    <i class="fa-solid fa-boxes-stacked"></i>
-                    <span>المخزن</span>
-                    <span class="nav-badge" id="low-stock-badge" style="display: none;">!</span>
-                </li>
-                <li class="nav-item" data-section="developer">
-                    <i class="fa-solid fa-code"></i>
-                    <span>مطور الموقع</span>
-                </li>
-                <li class="nav-item" data-section="settings">
-                    <i class="fa-solid fa-sliders"></i>
-                    <span>الاعدادات</span>
-                </li>
-            </ul>
-        </nav>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="top-header">
-                <div class="date-time" id="currentDateTime"></div>
-                <div class="user-info">
-                    <span>مرحباً، المستخدم</span>
-                    <i class="fa-solid fa-circle-user"></i>
-                </div>
-            </header>
-
-            <!-- Content Area (Dynamically Changed) -->
-            <div class="content-wrapper" id="contentWrapper">
-                <!-- Sections will be injected here via JS -->
-            </div>
-        </main>
-    </div>
-
-    <!-- Notification Container -->
-    <div id="notification-container" class="notification-container"></div>
-
-    <!-- Modals Container -->
-    <div id="modal-container"></div>
-
-    <!-- Firebase SDK (Compat Version) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
-
-    <!-- Custom JS -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/main.js?v=3"></script>
+    <script>
+        // Create simple background particles
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 50; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 5 + 2;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 20 + 's';
+            p.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            container.appendChild(p);
+        }
+    </script>
 </body>
 </html>

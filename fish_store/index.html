@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="أمواج الصياد">
+    <meta name="apple-mobile-web-app-title" content="أمواج الصياد">
+    <title>أمواج الصياد - إدارة المخزون الذكي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="manifest" href="manifest.json">
+    <script>
+        function detectMobile() {
+            // Only force mobile mode if the screen is physically narrow (< 992px)
+            // This allows 'Desktop Mode' on mobile browsers to show the full PC view
+            const isMob = window.innerWidth <= 768;
+            if (isMob) document.body.classList.add('is-mobile');
+            else document.body.classList.remove('is-mobile');
+        }
+        window.addEventListener('resize', detectMobile);
+        window.addEventListener('DOMContentLoaded', detectMobile);
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+    </script>
+    <style>
+        /* Unified styling is now handled in style.css */
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <img src="logo.jpeg" alt="Amwaj Al-Sayyad Logo" id="project-logo">
+            </div>
+            <h1>مطعم أمواج الصياد</h1>
+        </div>
+
+        <nav class="nav-links">
+            <div class="nav-item">
+                <a href="#" class="nav-link active" data-section="manager">
+                    <i class="fas fa-user-tie"></i>
+                    <span>المدير</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="fiber-fridge">
+                    <i class="fas fa-box-open"></i>
+                    <span>ثلاجة الفيبر</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="shop-fridge">
+                    <i class="fas fa-store"></i>
+                    <span>ثلاجة المحل</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="fridge-keeper">
+                    <i class="fas fa-user-shield"></i>
+                    <span>أمين الثلاجات</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="developer">
+                    <i class="fas fa-code"></i>
+                    <span>المطور</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>الاعدادات</span>
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Header for Printing -->
+    <div class="print-only-header" style="display: none;">
+        <div class="logo-box">
+            <img src="logo.jpeg" alt="Logo">
+            <h1>مطعم أمواج الصياد</h1>
+            <p>تقرير إداري معتمد</p>
+            <p>تاريخ التقرير: <span class="print-date"></span></p>
+        </div>
+    </div>
+
+    <!-- Print Footer -->
+    <div class="print-footer" style="display: none;">
+        <p>نظام أمواج الصياد الذكي v2.5 | صدر في: <span class="print-date"></span></p>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h2 id="current-section-title" class="page-title">المدير</h2>
+            <div class="user-info">
+                <span id="firebase-status" title="حالة الاتصال بالسحابة" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block; margin-left: 10px; transition: all 0.3s;"></span>
+                <span id="date-display" style="color: var(--text-muted);"></span>
+            </div>
+        </header>
+
+        <!-- Section: Manager -->
+        <section id="manager" class="section active">
+            <!-- Manager Stats / Financial Reports -->
+            <div class="grid" style="margin-bottom: 2rem;">
+                <div class="card manager-card-animate" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.02)); border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <span style="color: #10b981;"><i class="fas fa-arrow-down"></i> إجمالي المشتريات</span>
+                    <div id="stats-total-purchase" class="stats" style="color: #10b981; font-size: 1.8rem; margin-top: 0.5rem;">0 ر.س</div>
+                </div>
+                <div class="card manager-card-animate" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02)); border: 1px solid rgba(59, 130, 246, 0.2);">
+                    <span style="color: #3b82f6;"><i class="fas fa-arrow-up"></i> إجمالي المبيعات</span>
+                    <div id="stats-total-sales" class="stats" style="color: #3b82f6; font-size: 1.8rem; margin-top: 0.5rem;">0 ر.س</div>
+                </div>
+                <div class="card manager-card-animate" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.02)); border: 1px solid rgba(245, 158, 11, 0.2);">
+                    <span style="color: #f59e0b;"><i class="fas fa-undo"></i> إجمالي المرتجعات</span>
+                    <div id="stats-total-return" class="stats" style="color: #f59e0b; font-size: 1.8rem; margin-top: 0.5rem;">0 ر.س</div>
+                </div>
+                <div class="card manager-card-animate" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.02)); border: 1px solid rgba(239, 68, 68, 0.2);">
+                    <span style="color: #ef4444;"><i class="fas fa-trash-alt"></i> إجمالي التوالف</span>
+                    <div id="stats-total-damaged" class="stats" style="color: #ef4444; font-size: 1.8rem; margin-top: 0.5rem;">0 ر.س</div>
+                </div>
+            </div>
+
+            <div class="card manager-card-animate">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3>سجل العمليات والتقارير</h3>
+                    <div class="reports-toolbar">
+                        <div class="filter-group">
+                            <select id="filter-type" class="input-cell" style="width: auto;">
+                                <option value="all">جميع العمليات</option>
+                                <option value="purchase">مشتريات</option>
+                                <option value="sales">مبيعات</option>
+                                <option value="return">مرتجع</option>
+                                <option value="damaged">تالف</option>
+                                <option value="transfer">تحويل</option>
+                            </select>
+                            <select id="filter-fridge" class="input-cell" style="width: auto;">
+                                <option value="all">جميع الثلاجات</option>
+                                <option value="fiber">ثلاجة الفيبر</option>
+                                <option value="shop">ثلاجة المحل</option>
+                            </select>
+                        </div>
+                        <input type="text" id="search-logs" class="input-cell" placeholder="بحث في السجل..." style="width: 200px; margin-top: 0;">
+                        <div class="action-buttons">
+                            <button id="export-logs-btn" class="btn-primary" style="background: #10b981; margin-top: 0;">
+                                <i class="fas fa-file-excel"></i> <span>تصدير</span>
+                            </button>
+                            <button id="print-logs-btn" class="btn-primary" style="background: #6366f1; margin-top: 0;">
+                                <i class="fas fa-print"></i> <span>طباعة</span>
+                            </button>
+                            <button id="clear-logs-btn" class="btn-primary" style="background: #ef4444; margin-top: 0;">
+                                <i class="fas fa-trash-alt"></i> <span>مسح</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container" style="display: block;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اليوم</th>
+                                <th>التاريخ والوقت</th>
+                                <th>نوع العملية</th>
+                                <th>اسم الصنف</th>
+                                <th>الوزن (كجم)</th>
+                                <th>العدد</th>
+                                <th>القيمة</th>
+                                <th>الموقع</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            <!-- Logs will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Fiber Fridge -->
+        <section id="fiber-fridge" class="section">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>مخزون ثلاجة الفيبر</h3>
+                    <input type="text" id="search-fiber" class="input-cell" placeholder="بحث عن صنف..." style="width: 250px; margin-top: 0;">
+                </div>
+                <div class="grid" style="margin-bottom: 1.5rem;">
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي الأصناف</span>
+                        <div id="fiber-total-items" class="stats" style="font-size: 1.5rem;">0</div>
+                    </div>
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي الوزن</span>
+                        <div id="fiber-total-weight" class="stats" style="font-size: 1.5rem;">0 كجم</div>
+                    </div>
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي السعر</span>
+                        <div id="fiber-total-price" class="stats" style="font-size: 1.5rem;">0 ر.س</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>محتويات ثلاجة الفيبر</h3>
+                    <button id="show-transfer-btn" class="btn-primary" style="background: var(--accent-gradient); margin-top: 0;">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>تحويل إلى ثلاجة المحل</span>
+                    </button>
+                    <button id="print-fiber-btn" class="btn-primary" style="background: #6366f1; margin-top: 0;">
+                        <i class="fas fa-print"></i> طباعة الجرد
+                    </button>
+                </div>
+
+                <!-- Transfer Interface (Hidden by default) -->
+                <div id="transfer-interface" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 16px; border: 1px dashed var(--primary-color); margin-bottom: 2rem; animation: slideDown 0.4s ease-out;">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary-color);">إجراء تحويل من الفيبر إلى المحل</h4>
+                    <div class="table-container" style="display: block; margin-top: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>رقم الصنف</th>
+                                    <th>اسم الصنف</th>
+                                    <th>اليوم</th>
+                                    <th>التاريخ والوقت</th>
+                                    <th>الوزن المحول (كجم)</th>
+                                    <th>السعر</th>
+                                    <th>العدد المحول</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfer-table-body">
+                                <!-- Transfer rows -->
+                            </tbody>
+                        </table>
+                        <div style="padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <button id="add-transfer-item-btn" class="btn-primary" style="margin-top: 0; background: none; border: 1px solid var(--primary-color); color: var(--primary-color);">
+                                <i class="fas fa-plus"></i>
+                                <span>إضافة صنف للتحويل</span>
+                            </button>
+                            <div style="display: flex; gap: 1rem;">
+                                <button id="cancel-transfer-btn" class="btn-primary" style="margin-top: 0; background: none; border: 1px solid #f87171; color: #f87171;">
+                                    <span>إلغاء</span>
+                                </button>
+                                <button id="confirm-transfer-btn" class="btn-primary" style="margin-top: 0; background: var(--secondary-color);">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>تأكيد التحويل</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>رقم الصنف</th>
+                                <th>اسم الصنف</th>
+                                <th>اليوم</th>
+                                <th>التاريخ والوقت</th>
+                                <th>الوزن (كجم)</th>
+                                <th>السعر</th>
+                                <th>العدد</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fiber-fridge-table-body">
+                            <!-- Items will be loaded here from localStorage -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Shop Fridge -->
+        <section id="shop-fridge" class="section">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>مخزون ثلاجة المحل</h3>
+                    <input type="text" id="search-shop" class="input-cell" placeholder="بحث عن صنف..." style="width: 250px; margin-top: 0;">
+                </div>
+                <div class="grid" style="margin-bottom: 1.5rem;">
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي الأصناف</span>
+                        <div id="shop-total-items" class="stats" style="font-size: 1.5rem;">0</div>
+                    </div>
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي الوزن</span>
+                        <div id="shop-total-weight" class="stats" style="font-size: 1.5rem;">0 كجم</div>
+                    </div>
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1rem;">
+                        <span style="color: var(--text-muted);">إجمالي السعر</span>
+                        <div id="shop-total-price" class="stats" style="font-size: 1.5rem;">0 ر.س</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>محتويات ثلاجة المحل</h3>
+                    <button id="print-shop-btn" class="btn-primary" style="background: #6366f1; margin-top: 0;">
+                        <i class="fas fa-print"></i> طباعة الجرد
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>رقم الصنف</th>
+                                <th>اسم الصنف</th>
+                                <th>اليوم</th>
+                                <th>التاريخ والوقت</th>
+                                <th>الوزن (كجم)</th>
+                                <th>السعر</th>
+                                <th>العدد</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shop-fridge-table-body">
+                            <!-- Items will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Fridge Keeper -->
+        <section id="fridge-keeper" class="section">
+            <div class="card">
+                <h3>لوحة أمين الثلاجات - العمليات</h3>
+                <div class="transaction-buttons" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <button class="btn-primary trans-type-btn" data-type="purchase" style="background: #10b981;">
+                        <i class="fas fa-shopping-cart"></i> <span>فاتورة شراء</span>
+                    </button>
+                    <button class="btn-primary trans-type-btn" data-type="sales" style="background: #3b82f6;">
+                        <i class="fas fa-cash-register"></i> <span>فاتورة مبيع</span>
+                    </button>
+                    <button class="btn-primary trans-type-btn" data-type="return" style="background: #f59e0b;">
+                        <i class="fas fa-undo"></i> <span>مرتجع</span>
+                    </button>
+                    <button class="btn-primary trans-type-btn" data-type="damaged" style="background: #ef4444;">
+                        <i class="fas fa-trash-alt"></i> <span>تالف</span>
+                    </button>
+                </div>
+
+                <div id="active-transaction-container" style="display: none; animation: slideDown 0.4s ease-out;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <h4 id="transaction-title" style="color: var(--primary-color);">نوع العملية</h4>
+                        <div class="input-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label for="target-fridge"><i class="fas fa-warehouse"></i> المستودع المستهدف:</label>
+                            <select id="target-fridge" class="input-cell" style="width: auto; background: none; border: 1px solid var(--glass-border);">
+                                <option value="fiber" selected>ثلاجة الفيبر</option>
+                                <option value="shop">ثلاجة المحل</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="item-table-container" class="table-container" style="display: block; margin-top: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>رقم الصنف</th>
+                                    <th>اسم الصنف</th>
+                                    <th>اليوم</th>
+                                    <th>التاريخ والوقت</th>
+                                    <th>الوزن (كجم)</th>
+                                    <th>السعر</th>
+                                    <th>العدد</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="item-table-body">
+                                <!-- Rows added dynamically -->
+                            </tbody>
+                        </table>
+                        <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--glass-border);">
+                            <button id="add-item-btn" class="btn-primary" style="margin-top: 0; background: none; border: 1px dashed var(--primary-color); color: var(--primary-color);">
+                                <i class="fas fa-plus"></i>
+                                <span>إضافة صنف آخر</span>
+                            </button>
+                            
+                            <button id="save-items-btn" class="btn-primary" style="margin-top: 0; background: var(--secondary-color); min-width: 200px;">
+                                <i class="fas fa-paper-plane"></i>
+                                <span id="save-btn-text">ترحيل البيانات</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Developer -->
+        <section id="developer" class="section">
+            <div class="developer-container">
+                <div class="dev-card-modern">
+                    <div class="dev-profile-header">
+                        <div class="dev-avatar-glow">
+                            <img src="dev_labib_real.jpg" alt="Developer Image" style="width: 100%; height: 100%; object-fit: cover; border-radius: 20px;">
+                        </div>
+                        <div class="dev-title-box">
+                            <h2 class="gradient-text">لبيب محفوظ الكلعي</h2>
+                            <p>مطور النظام وخبير حلول التقنية الذكية</p>
+                        </div>
+                    </div>
+                    
+                    <div class="dev-feature-grid">
+                        <div class="dev-feature-card">
+                            <i class="fas fa-rocket"></i>
+                            <h4>السرعة</h4>
+                            <p>أداء فائق</p>
+                        </div>
+                        <div class="dev-feature-card">
+                            <i class="fas fa-shield-alt"></i>
+                            <h4>الأمان</h4>
+                            <p>حماية مشفرة</p>
+                        </div>
+                        <div class="dev-feature-card">
+                            <i class="fas fa-sync-alt"></i>
+                            <h4>المزامنة</h4>
+                            <p>تحديث لحظي</p>
+                        </div>
+                    </div>
+                    
+                    <div class="dev-description">
+                        <p>تم تصميم وتطوير نظام "أمواج الصياد" ليكون شريكك التقني الموثوق. نستخدم أحدث لغات البرمجة لضمان استقرار النظام تحت أي ظرف وتوفير تجربة مستخدم سلسة واحترافية.</p>
+                    </div>
+
+                    <div class="dev-contact-links">
+                        <a href="https://wa.me/966546117271" target="_blank" class="contact-btn whatsapp"><i class="fab fa-whatsapp"></i> واتساب</a>
+                        <a href="https://t.me/+966546117271" target="_blank" class="contact-btn telegram"><i class="fab fa-telegram-plane"></i> تليجرام</a>
+                    </div>
+                    
+                    <div class="dev-card-footer">
+                        <p>نظام أمواج الصياد الذكي v2.5 | 2026</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Settings -->
+        <section id="settings" class="section">
+            <div class="card">
+                <h3>إعدادات النظام</h3>
+                <div class="grid" style="margin-top: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                    <!-- Low Stock Setting -->
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1.5rem; border: 1px solid var(--glass-border);">
+                        <label style="display: block; margin-bottom: 1rem; color: var(--text-muted);"><i class="fas fa-exclamation-triangle"></i> حد تنبيه نقص المخزون (كجم)</label>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <input type="number" id="threshold-input" class="input-cell" value="10" style="margin-top: 0; flex: 1;">
+                        </div>
+                    </div>
+
+                    <!-- Password Management -->
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1.5rem; border: 1px solid var(--glass-border);">
+                        <label style="display: block; margin-bottom: 1rem; color: var(--text-muted);"><i class="fas fa-lock"></i> إدارة كلمات المرور</label>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Manager Section -->
+                            <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem; margin-bottom: 0.5rem;">
+                                <p style="font-size: 0.8rem; color: var(--primary-color); margin-bottom: 0.5rem;">تغيير كلمة المدير:</p>
+                                <input type="password" id="old-manager-pass" class="input-cell" placeholder="كلمة المرور الحالية" style="margin-bottom: 0.5rem; width: 100%;">
+                                <input type="password" id="manager-pass-input" class="input-cell" placeholder="كلمة المرور الجديدة" style="width: 100%;">
+                            </div>
+                            <!-- Keeper Section -->
+                            <div>
+                                <p style="font-size: 0.8rem; color: var(--secondary-color); margin-bottom: 0.5rem;">تغيير كلمة الأمين:</p>
+                                <input type="password" id="old-keeper-pass" class="input-cell" placeholder="كلمة المرور الحالية" style="margin-bottom: 0.5rem; width: 100%;">
+                                <input type="password" id="keeper-pass-input" class="input-cell" placeholder="كلمة المرور الجديدة" style="width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- App Installation (Android) -->
+                    <div id="install-card" class="card" style="display: none; background: rgba(59, 130, 246, 0.05); padding: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <label style="display: block; margin-bottom: 1rem; color: var(--primary-color);"><i class="fas fa-mobile-alt"></i> نسخة الأندرويد</label>
+                        <button id="install-app-btn" class="btn-primary" style="width: 100%; margin-top: 0;">تثبيت التطبيق على الشاشة الرئيسية</button>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">قم بتثبيت التطبيق للوصول السريع بدون متصفح.</p>
+                    </div>
+
+                    <!-- System Reset -->
+                    <div class="card" style="background: rgba(239, 68, 68, 0.05); padding: 1.5rem; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <label style="display: block; margin-bottom: 1rem; color: #ef4444;"><i class="fas fa-radiation"></i> منطقة الخطر</label>
+                        <button id="factory-reset-btn" class="btn-primary" style="background: #ef4444; width: 100%; margin-top: 0;">تهيئة المصنع (مسح كل شيء)</button>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">سيتم حذف كافة الأصناف والعمليات نهائياً.</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; text-align: left;">
+                    <button id="save-all-settings-btn" class="btn-primary" style="background: var(--accent-gradient); padding: 1rem 3rem;">
+                        <i class="fas fa-save"></i> حفظ جميع الإعدادات
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav">
+        <a href="#" class="mobile-nav-link active" data-section="manager">
+            <i class="fas fa-chart-pie"></i>
+            <span>المدير</span>
+        </a>
+        <a href="#" class="mobile-nav-link" data-section="fiber-fridge">
+            <i class="fas fa-snowflake"></i>
+            <span>الفيبر</span>
+        </a>
+        <a href="#" class="mobile-nav-link" data-section="shop-fridge">
+            <i class="fas fa-store"></i>
+            <span>المحل</span>
+        </a>
+        <a href="#" class="mobile-nav-link" data-section="fridge-keeper">
+            <i class="fas fa-key"></i>
+            <span>الأمين</span>
+        </a>
+        <a href="#" class="mobile-nav-link" data-section="developer">
+            <i class="fas fa-code"></i>
+            <span>المطور</span>
+        </a>
+        <a href="#" class="mobile-nav-link" data-section="settings">
+            <i class="fas fa-cog"></i>
+            <span>الإعدادات</span>
+        </a>
+    </nav>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/main.js?v=3"></script>
+    <script>
+        // Force unregister stuck service workers and hard reload if needed
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.update();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

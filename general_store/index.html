@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="أمواج المخزن">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="نظام إدارة المخزن - مطعم أمواج الصياد">
+    <title>نظام إدارة المخزن - مطعم أمواج الصياد</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="js/logo_base64.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=3">
+</head>
+<body>
+
+    <!-- Welcome Splash Screen -->
+    <div id="welcome-screen" class="welcome-overlay">
+        <div class="welcome-content">
+            <div class="welcome-logo-wrapper">
+                <img src="logo.png.jpeg" alt="Logo" class="welcome-logo">
+            </div>
+            <h1 class="welcome-title">أهلاً بك في نظام أمواج الصياد</h1>
+            <p class="welcome-subtitle">نظام الإدارة الذكي للمخازن والمستودعات</p>
+            <button class="welcome-btn" onclick="enterSystem()">
+                <span>دخول النظام</span>
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <img src="logo.png.jpeg" alt="Logo" class="app-logo">
+                </div>
+                <h2>أمواج الصياد</h2>
+                <p>نظام إدارة المخزن</p>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" data-section="manager">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>المدير</span>
+                </li>
+                <li class="nav-item" data-section="storekeeper">
+                    <i class="fa-solid fa-id-card-clip"></i>
+                    <span>أمين المخزن</span>
+                </li>
+                <li class="nav-item" data-section="inventory" id="nav-inventory">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>المخزن</span>
+                    <span class="nav-badge" id="low-stock-badge" style="display: none;">!</span>
+                </li>
+                <li class="nav-item" data-section="developer">
+                    <i class="fa-solid fa-code"></i>
+                    <span>مطور الموقع</span>
+                </li>
+                <li class="nav-item" data-section="settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>الاعدادات</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="date-time" id="currentDateTime"></div>
+                <div class="user-info">
+                    <span>مرحباً، المستخدم</span>
+                    <i class="fa-solid fa-circle-user"></i>
+                </div>
+            </header>
+
+            <!-- Content Area (Dynamically Changed) -->
+            <div class="content-wrapper" id="contentWrapper">
+                <!-- Sections will be injected here via JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <!-- Modals Container -->
+    <div id="modal-container"></div>
+
+    <!-- Firebase SDK (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
+    <!-- Custom JS -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/main.js?v=3"></script>
+</body>
+</html>
