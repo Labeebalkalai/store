@@ -16,7 +16,7 @@
 
         body {
             margin: 0;
-            padding: 40px 0; /* Add padding for mobile scrolling */
+            padding: 40px 0;
             background: radial-gradient(circle at top right, #1e293b, #0f172a);
             color: white;
             font-family: 'Cairo', sans-serif;
@@ -37,7 +37,7 @@
         }
 
         h1 {
-            font-size: clamp(1.8rem, 5vw, 3rem); /* Responsive font size */
+            font-size: clamp(1.8rem, 5vw, 3rem);
             margin-bottom: 10px;
             background: linear-gradient(to right, #6366f1, #10b981);
             -webkit-background-clip: text;
@@ -49,7 +49,6 @@
             color: #94a3b8;
             font-size: clamp(0.9rem, 3vw, 1.2rem);
             margin-bottom: 40px;
-            padding: 0 15px;
         }
 
         .portal-grid {
@@ -67,32 +66,38 @@
             text-decoration: none;
             color: white;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(15px);
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
             overflow: hidden;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s forwards;
         }
+
+        .portal-card:nth-child(2) { animation-delay: 0.2s; }
 
         .portal-card::before {
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.15) 0%, transparent 70%);
             opacity: 0;
-            transition: 0.4s;
+            transition: opacity 0.3s;
+            pointer-events: none;
         }
 
         .portal-card:hover {
             transform: translateY(-10px) scale(1.02);
-            border-color: var(--primary);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: rgba(255,255,255,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(99, 102, 241, 0.2);
         }
 
-        .portal-card:hover::before {
-            opacity: 1;
-        }
+        .portal-card:hover::before { opacity: 1; }
+
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
         .icon-wrapper {
             width: 100px;
@@ -105,36 +110,15 @@
             font-size: 3rem;
             margin-bottom: 25px;
             color: var(--primary);
-            transition: 0.4s;
         }
 
-        .portal-card:hover .icon-wrapper {
-            transform: rotate(10deg) scale(1.1);
-            background: var(--primary);
-            color: white;
-        }
+        .fish-card .icon-wrapper { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
 
-        .fish-card .icon-wrapper {
-            color: #3b82f6;
-            background: rgba(59, 130, 246, 0.1);
-        }
-        .fish-card:hover .icon-wrapper {
-            background: #3b82f6;
-        }
+        h2 { font-size: 1.8rem; margin: 0 0 15px; }
 
-        h2 {
-            font-size: 1.8rem;
-            margin: 0 0 15px;
-        }
-
-        .description {
-            font-size: 1rem;
-            color: #94a3b8;
-            line-height: 1.6;
-        }
+        .description { font-size: 1rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
 
         .btn-enter {
-            margin-top: 30px;
             padding: 12px 30px;
             border-radius: 50px;
             background: rgba(255, 255, 255, 0.05);
@@ -144,14 +128,11 @@
             transition: 0.3s;
         }
 
-        .portal-card:hover .btn-enter {
-            background: white;
-            color: black;
-        }
+        .portal-card:hover .btn-enter { background: white; color: black; }
 
-        /* Animated Background Particles */
-        .particles {
-            position: absolute;
+        /* Animated Background Particles & Fish */
+        .particles, .fish-container {
+            position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: 1;
             pointer-events: none;
@@ -165,52 +146,73 @@
             animation: float 20s infinite linear;
         }
 
+        .floating-fish {
+            position: absolute;
+            color: rgba(99, 102, 241, 0.15);
+            font-size: 2rem;
+            animation: swim linear infinite;
+        }
+
         @keyframes float {
             0% { transform: translateY(0) rotate(0); opacity: 0.2; }
             50% { opacity: 0.5; }
             100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes swim {
+            from { transform: translateX(110vw) scaleX(-1); }
+            to { transform: translateX(-20vw) scaleX(-1); }
+        }
+
+        @keyframes swim-reverse {
+            from { transform: translateX(-20vw) scaleX(1); }
+            to { transform: translateX(110vw) scaleX(1); }
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            animation: pop 0.6s ease-out forwards;
+            z-index: 100;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); opacity: 0.8; }
+            100% { transform: scale(3); opacity: 0; }
         }
     </style>
 </head>
 <body>
 
     <div class="particles" id="particles"></div>
+    <div class="fish-container" id="fish-container"></div>
 
     <div class="container">
         <h1>مجموعة أنظمة أمواج الصياد</h1>
         <p>اختر النظام الذي ترغب في الدخول إليه</p>
 
         <div class="portal-grid">
-            <!-- Fish Store Card -->
             <a href="fish_store/index.html" class="portal-card fish-card">
-                <div class="icon-wrapper">
-                    <i class="fas fa-fish"></i>
-                </div>
+                <div class="icon-wrapper"><i class="fas fa-fish"></i></div>
                 <h2>نظام مخزن السمك</h2>
-                <div class="description">
-                    إدارة ثلاجات الفيبر والمحل، متابعة أوزان الأسماك، وعمليات التحويل والجرد اليومي.
-                </div>
+                <div class="description">إدارة ثلاجات الفيبر والمحل، متابعة أوزان الأسماك، وعمليات التحويل والجرد اليومي.</div>
                 <div class="btn-enter">دخول النظام</div>
             </a>
 
-            <!-- General Store Card -->
             <a href="general_store/index.html" class="portal-card">
-                <div class="icon-wrapper">
-                    <i class="fas fa-boxes-stacked"></i>
-                </div>
+                <div class="icon-wrapper"><i class="fas fa-boxes-stacked"></i></div>
                 <h2>نظام المخزن العام</h2>
-                <div class="description">
-                    إدارة كافة أصناف المطعم، المستهلكات، النواقص، والتقارير الإدارية الشاملة للمخزون.
-                </div>
+                <div class="description">إدارة كافة أصناف المطعم، المستهلكات، النواقص، والتقارير الإدارية الشاملة للمخزون.</div>
                 <div class="btn-enter">دخول النظام</div>
             </a>
         </div>
     </div>
 
     <script>
-        // Create simple background particles
         const container = document.getElementById('particles');
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 40; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
             const size = Math.random() * 5 + 2;
@@ -222,6 +224,46 @@
             p.style.animationDuration = (Math.random() * 10 + 10) + 's';
             container.appendChild(p);
         }
+
+        const fishContainer = document.getElementById('fish-container');
+        const fishIcons = ['fa-fish', 'fa-fish-fins'];
+        function spawnFish() {
+            const fish = document.createElement('i');
+            const icon = fishIcons[Math.floor(Math.random() * fishIcons.length)];
+            fish.className = `fa-solid ${icon} floating-fish`;
+            const isReverse = Math.random() > 0.5;
+            fish.style.animationName = isReverse ? 'swim-reverse' : 'swim';
+            fish.style.top = (Math.random() * 80 + 10) + '%';
+            fish.style.fontSize = (Math.random() * 1.5 + 1) + 'rem';
+            fish.style.opacity = Math.random() * 0.2 + 0.1;
+            fish.style.animationDuration = (Math.random() * 15 + 15) + 's';
+            fishContainer.appendChild(fish);
+            setTimeout(() => fish.remove(), 30000);
+        }
+        for(let i=0; i<6; i++) setTimeout(spawnFish, i * 2500);
+        setInterval(spawnFish, 6000);
+
+        document.addEventListener('click', (e) => {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * 20 + 10;
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+            bubble.style.left = (e.clientX - size/2) + 'px';
+            bubble.style.top = (e.clientY - size/2) + 'px';
+            document.body.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 600);
+        });
+
+        document.querySelectorAll('.portal-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                card.style.setProperty('--x', `${x}%`);
+                card.style.setProperty('--y', `${y}%`);
+            });
+        });
     </script>
 </body>
 </html>

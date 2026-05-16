@@ -87,6 +87,10 @@
             <!-- Header -->
             <header class="top-header">
                 <div class="date-time" id="currentDateTime"></div>
+                <div class="connection-status" style="display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted);">
+                    <span id="firebase-status-dot" class="status-dot-pulse" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                    <span id="status-text">جاري الاتصال...</span>
+                </div>
                 <div class="user-info">
                     <span>مرحباً، المستخدم</span>
                     <i class="fa-solid fa-circle-user"></i>

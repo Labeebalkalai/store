@@ -1408,3 +1408,38 @@ function renderDeveloper(c) {
         </div>
     `; 
 }
+
+// --- PREMIUM TOUCHES ---
+document.addEventListener('click', (e) => {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    const size = Math.random() * 20 + 10;
+    bubble.style.width = size + 'px';
+    bubble.style.height = size + 'px';
+    bubble.style.left = (e.clientX - size/2) + 'px';
+    bubble.style.top = (e.clientY - size/2) + 'px';
+    document.body.appendChild(bubble);
+    setTimeout(() => bubble.remove(), 600);
+});
+
+if (typeof isFirebaseConfigured !== 'undefined' && isFirebaseConfigured()) {
+    db.ref(".info/connected").on("value", (snap) => {
+        const dot = document.getElementById('firebase-status-dot');
+        const text = document.getElementById('status-text');
+        if (dot && text) {
+            if (snap.val() === true) {
+                dot.style.background = '#10b981';
+                dot.style.boxShadow = '0 0 10px #10b981';
+                dot.classList.add('status-dot-pulse');
+                text.innerText = 'متصل بالسحابة';
+                text.style.color = '#10b981';
+            } else {
+                dot.style.background = '#ef4444';
+                dot.style.boxShadow = 'none';
+                dot.classList.remove('status-dot-pulse');
+                text.innerText = 'غير متصل - وضع الأوفلاين';
+                text.style.color = '#ef4444';
+            }
+        }
+    });
+}

@@ -108,7 +108,8 @@
         <header class="top-bar">
             <h2 id="current-section-title" class="page-title">المدير</h2>
             <div class="user-info">
-                <span id="firebase-status" title="حالة الاتصال بالسحابة" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block; margin-left: 10px; transition: all 0.3s;"></span>
+                <span id="firebase-status-dot" class="status-dot-pulse" title="حالة الاتصال بالسحابة" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block; margin-left: 10px; transition: all 0.3s;"></span>
+                <span id="status-text" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 15px;">جاري الاتصال...</span>
                 <span id="date-display" style="color: var(--text-muted);"></span>
             </div>
         </header>
@@ -538,6 +539,7 @@
     </nav>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/firebase-config.js"></script>
     <script src="js/main.js?v=3"></script>
     <script>
         // Force unregister stuck service workers and hard reload if needed
