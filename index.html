@@ -16,7 +16,7 @@
 
         body {
             margin: 0;
-            padding: 0;
+            padding: 40px 0; /* Add padding for mobile scrolling */
             background: radial-gradient(circle at top right, #1e293b, #0f172a);
             color: white;
             font-family: 'Cairo', sans-serif;
@@ -25,7 +25,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         .container {
@@ -36,7 +37,7 @@
         }
 
         h1 {
-            font-size: 3rem;
+            font-size: clamp(1.8rem, 5vw, 3rem); /* Responsive font size */
             margin-bottom: 10px;
             background: linear-gradient(to right, #6366f1, #10b981);
             -webkit-background-clip: text;
@@ -46,21 +47,23 @@
 
         p {
             color: #94a3b8;
-            font-size: 1.2rem;
-            margin-bottom: 50px;
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            margin-bottom: 40px;
+            padding: 0 15px;
         }
 
         .portal-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 0 15px;
         }
 
         .portal-card {
             background: var(--card-bg);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 24px;
-            padding: 40px;
+            padding: 30px;
             text-decoration: none;
             color: white;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
