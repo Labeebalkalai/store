@@ -61,11 +61,19 @@ else {
 // --- Passwords & Settings ---
 let currentSection = 'manager';
 let appPasswords = { manager: "admin123", storekeeper: "astore123", actions: "rasheed123321" };
-let appSettings = { lowStockThreshold: 1, thresholdKilo: 1, thresholdLiter: 1, thresholdGram: 100 };
+let appSettings = { lowStockThreshold: 1, thresholdKilo: 1, thresholdLiter: 1, thresholdGram: 100, storeName: 'مطعم أمواج الصياد', contactPhone: '', currencySymbol: 'ر.س', enableSound: true, autoBackup: false, darkMode: true };
 
 function syncSettings() {
     db.ref('settings/passwords').on('value', (snap) => { if (snap.exists()) appPasswords = snap.val(); else db.ref('settings/passwords').set(appPasswords); });
-    db.ref('settings/general').on('value', (snap) => { if (snap.exists()) appSettings = snap.val(); else db.ref('settings/general').set(appSettings); updateLowStockStatus(); });
+    db.ref('settings/general').on('value', (snap) => { 
+        if (snap.exists()) {
+            appSettings = snap.val(); 
+            if(window.toggleDarkMode) window.toggleDarkMode(appSettings.darkMode !== false);
+        } else {
+            db.ref('settings/general').set(appSettings); 
+        }
+        updateLowStockStatus(); 
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => { syncSettings(); setupNavigation(); updateDateTime(); setInterval(updateDateTime, 1000); loadSection('manager'); });
@@ -160,6 +168,18 @@ window.loadTableData = function(filter, p) {
 };
 
 window.showNotification = (msg, type = 'success') => {
+    if (appSettings.enableSound !== false && type === 'success') {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+            osc.start(); osc.stop(ctx.currentTime + 0.1);
+        } catch(e) {}
+    }
     const container = document.getElementById('notification-container'); if(!container) return;
     const notif = document.createElement('div'); notif.className = `notification ${type}`;
     notif.innerHTML = `<span>${msg}</span>`; container.appendChild(notif);
@@ -231,7 +251,7 @@ function renderDashboardCommon(container, prefix) {
         <div class="print-header">
             <img src="logo.png.jpeg" alt="Logo">
             <div class="print-title">
-                <h1>مطعم أمواج الصياد</h1>
+                <h1>${appSettings.storeName || 'مطعم أمواج الصياد'}</h1>
                 <h3>تقرير العمليات الموثق</h3>
                 <p id="${prefix}-print-date" class="print-date">${new Date().toLocaleString('ar-YE')}</p>
             </div>
@@ -701,7 +721,7 @@ function renderInventory(w) {
             <div class="print-header">
                 <img src="logo.png.jpeg" alt="Logo">
                 <div class="print-title">
-                    <h1>مطعم أمواج الصياد</h1>
+                    <h1>${appSettings.storeName || 'مطعم أمواج الصياد'}</h1>
                     <h3>تقرير كشف المخزون العام</h3>
                     <p class="print-date">${new Date().toLocaleString('ar-YE')}</p>
                 </div>
@@ -978,14 +998,17 @@ window.saveItem = async () => {
             if(num && name) {
                 // Check if item exists by number or name
                 let key = null;
+                let existingItem = null;
                 Object.keys(inventory).forEach(k => { 
                     if(inventory[k].itemNumber == num || inventory[k].name.trim().toLowerCase() === name.toLowerCase()) {
                         key = k; 
+                        existingItem = inventory[k];
                     }
                 });
 
                 if(key) {
-                    // Update existing item
+                    // If name matches but number is different, or vice versa, ask or handle
+                    // For now, we'll follow the existing logic but keep it safe
                     await db.ref(`inventory/${key}`).update({ 
                         itemNumber: num, 
                         name, 
@@ -1018,6 +1041,87 @@ window.saveItem = async () => {
         showNotification('حدث خطأ أثناء الحفظ', 'error');
     }
 };
+
+window.exportBackup = async () => {
+    try {
+        showNotification('جاري تجهيز النسخة الاحتياطية...', 'info');
+        const invSnap = await db.ref('inventory').once('value');
+        const transSnap = await db.ref('transactions').once('value');
+        const settingsSnap = await db.ref('settings').once('value');
+        
+        const backupData = {
+            inventory: invSnap.val() || {},
+            transactions: transSnap.val() || {},
+            settings: settingsSnap.val() || {},
+            exportDate: new Date().toISOString(),
+            version: "1.4.0-backup"
+        };
+        
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `amwaj_general_store_backup_${new Date().toLocaleDateString('en-CA')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('تم تحميل النسخة الاحتياطية بنجاح ✓');
+    } catch (e) {
+        showNotification('فشل تصدير النسخة الاحتياطية', 'error');
+    }
+};
+
+window.importBackup = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm('تحذير: استعادة النسخة الاحتياطية ستقوم باستبدال البيانات الحالية بالكامل. هل تريد الاستمرار؟')) {
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.inventory && !data.transactions) throw new Error('ملف غير صالح');
+
+            showNotification('جاري استعادة البيانات...', 'info');
+            
+            if (data.inventory) await db.ref('inventory').set(data.inventory);
+            if (data.transactions) await db.ref('transactions').set(data.transactions);
+            if (data.settings) await db.ref('settings').set(data.settings);
+
+            showNotification('تمت استعادة النسخة الاحتياطية بنجاح ✓');
+            setTimeout(() => location.reload(), 1500);
+        } catch (err) {
+            console.error(err);
+            showNotification('فشل استعادة النسخة: تأكد من صحة الملف', 'error');
+        }
+    };
+    reader.readAsText(file);
+};
+
+window.setTheme = function(primary, secondary, accent) {
+    document.documentElement.style.setProperty('--primary-color', primary);
+    document.documentElement.style.setProperty('--secondary-color', secondary);
+    document.documentElement.style.setProperty('--accent-color', accent);
+    localStorage.setItem('gs_theme', JSON.stringify({primary, secondary, accent}));
+    showNotification('تم تغيير مظهر النظام بنجاح');
+};
+
+// Apply saved theme on load
+(function() {
+    const saved = localStorage.getItem('gs_theme');
+    if (saved) {
+        const theme = JSON.parse(saved);
+        document.documentElement.style.setProperty('--primary-color', theme.primary);
+        document.documentElement.style.setProperty('--secondary-color', theme.secondary);
+        document.documentElement.style.setProperty('--accent-color', theme.accent);
+    }
+})();
 
 function startModalTime() {
     const upd = () => {
@@ -1177,8 +1281,8 @@ function renderSettings(container) {
             </div>
 
             <div class="table-container" style="padding:30px;">
-                <h3><i class="fa-solid fa-lock" style="color:#10b981;"></i> كلمات المرور</h3>
-                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">إدارة كلمات المرور الخاصة بكافة الأقسام</p>
+                <h3><i class="fa-solid fa-lock" style="color:#10b981;"></i> الأمان والبيانات</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">إدارة كلمات المرور والنسخ الاحتياطي</p>
                 <div style="display:grid; gap:10px;">
                     <button class="btn btn-outline" onclick="changePassword('manager')" style="text-align:right;">
                         <i class="fa-solid fa-user-shield"></i> تغيير كلمة مرور المدير
@@ -1187,9 +1291,69 @@ function renderSettings(container) {
                         <i class="fa-solid fa-warehouse"></i> تغيير كلمة مرور أمين المخزن
                     </button>
                     <button class="btn btn-outline" onclick="changePassword('actions')" style="text-align:right;">
-                        <i class="fa-solid fa-cash-register"></i> تغيير كلمة مرور الصندوق / العمليات
+                        <i class="fa-solid fa-cash-register"></i> تغيير كلمة مرور العمليات
                     </button>
+                    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:5px 0;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <button class="btn btn-success" onclick="exportBackup()" style="justify-content:center;">
+                            <i class="fa-solid fa-file-export"></i> تصدير (Backup)
+                        </button>
+                        <label class="btn btn-primary" style="justify-content:center; cursor:pointer;">
+                            <i class="fa-solid fa-file-import"></i> استيراد (Restore)
+                            <input type="file" hidden accept=".json" onchange="importBackup(event)">
+                        </label>
+                    </div>
                 </div>
+            </div>
+
+            <!-- الهوية والعملة -->
+            <div class="table-container" style="padding:30px;">
+                <h3><i class="fa-solid fa-store" style="color:#3b82f6;"></i> هوية المنشأة</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">تغيير اسم المطعم وغيرها</p>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div class="form-group">
+                        <label>اسم المنشأة</label>
+                        <input type="text" id="set-store-name" class="form-control" value="${appSettings.storeName || 'مطعم أمواج الصياد'}">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم التواصل</label>
+                        <input type="text" id="set-contact-phone" class="form-control" value="${appSettings.contactPhone || ''}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- الإشعارات والأتمتة -->
+            <div class="table-container" style="padding:30px;">
+                <h3><i class="fa-solid fa-bell" style="color:#8b5cf6;"></i> الإشعارات والأتمتة</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">إعدادات التنبيهات والنسخ التلقائي</p>
+                <div style="display:flex; flex-direction:column; gap:15px;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="set-enable-sound" ${appSettings.enableSound !== false ? 'checked' : ''} style="width:20px;height:20px;">
+                        <span>تفعيل الإشعارات الصوتية (عند نجاح العمليات)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="set-auto-backup" ${appSettings.autoBackup ? 'checked' : ''} style="width:20px;height:20px;">
+                        <span>تفعيل النسخ الاحتياطي التلقائي (يومياً)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="set-dark-mode" ${appSettings.darkMode !== false ? 'checked' : ''} style="width:20px;height:20px;" onchange="toggleDarkMode(this.checked)">
+                        <span>تفعيل الوضع الليلي (Dark Mode)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="table-container" style="padding:30px;">
+                <h3><i class="fa-solid fa-palette" style="color:var(--primary-color);"></i> تخصيص الألوان</h3>
+                <p style="color:var(--text-muted); margin-bottom:15px; font-size:0.9rem;">اختر المظهر المفضل للنظام</p>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+                    <button class="theme-btn" onclick="setTheme('#6366f1', '#10b981', '#f59e0b')" style="background:#6366f1; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                    <button class="theme-btn" onclick="setTheme('#f43f5e', '#fbbf24', '#38bdf8')" style="background:#f43f5e; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                    <button class="theme-btn" onclick="setTheme('#8b5cf6', '#ec4899', '#10b981')" style="background:#8b5cf6; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                    <button class="theme-btn" onclick="setTheme('#10b981', '#3b82f6', '#f59e0b')" style="background:#10b981; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                    <button class="theme-btn" onclick="setTheme('#3b82f6', '#6366f1', '#ef4444')" style="background:#3b82f6; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                    <button class="theme-btn" onclick="setTheme('#ea580c', '#fbbf24', '#10b981')" style="background:#ea580c; border:2px solid #fff; height:40px; border-radius:10px; cursor:pointer;"></button>
+                </div>
+                <p style="margin-top:10px; font-size:0.8rem; text-align:center; color:var(--text-muted);">اضغط على اللون للتطبيق</p>
             </div>
 
             <div class="table-container" style="padding:30px; border: 2px solid rgba(211,47,47,0.3);">
@@ -1215,18 +1379,65 @@ function renderSettings(container) {
         const kilo = parseFloat(document.getElementById('set-threshold-kilo').value);
         const liter = parseFloat(document.getElementById('set-threshold-liter').value);
         const gram = parseFloat(document.getElementById('set-threshold-gram').value);
+
+        const sName = document.getElementById('set-store-name').value.trim();
+        const sPhone = document.getElementById('set-contact-phone').value.trim();
+        const sCurr = document.getElementById('set-currency').value.trim() || 'ر.س';
+        const sSound = document.getElementById('set-enable-sound').checked;
+        const sBackup = document.getElementById('set-auto-backup').checked;
+        const sDark = document.getElementById('set-dark-mode').checked;
         
         const newSettings = { 
             lowStockThreshold: val, 
             thresholdKilo: kilo, 
-            thresholdLiter: liter,
-            thresholdGram: gram
+            thresholdLiter: liter, 
+            thresholdGram: gram,
+            storeName: sName,
+            contactPhone: sPhone,
+            currencySymbol: sCurr,
+            enableSound: sSound,
+            autoBackup: sBackup,
+            darkMode: sDark
         };
         
         await db.ref('settings/general').update(newSettings);
         Object.assign(appSettings, newSettings);
-        showNotification('تم حفظ إعدادات النواقص بنجاح');
+        toggleDarkMode(newSettings.darkMode);
+        showNotification('تم حفظ الإعدادات بنجاح!');
     };
+
+    window.toggleDarkMode = function(isDark) {
+        let styleEl = document.getElementById('light-mode-style');
+        if(!isDark) {
+            if(!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'light-mode-style';
+                styleEl.innerHTML = `
+                    :root {
+                        --bg-color: #f8fafc;
+                        --panel-bg: #ffffff;
+                        --text-color: #1e293b;
+                        --glass-bg: rgba(255, 255, 255, 0.9);
+                        --glass-border: rgba(0, 0, 0, 0.1);
+                        --primary-color: #3b82f6;
+                    }
+                    body { background: var(--bg-color); color: var(--text-color); }
+                    .sidebar { background: var(--panel-bg); border-left: 1px solid var(--glass-border); }
+                    .table-container { background: var(--panel-bg); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                    table th { background: #f1f5f9; color: #334155; }
+                    table tr { border-bottom: 1px solid #e2e8f0; }
+                    .action-card { background: var(--panel-bg); color: var(--text-color); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                    .stat-card { background: var(--panel-bg); border: 1px solid var(--glass-border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                    .form-control, .input-cell { background: #f1f5f9; border: 1px solid #cbd5e1; color: #1e293b; }
+                    h1, h2, h3 { color: #0f172a; }
+                `;
+                document.head.appendChild(styleEl);
+            }
+        } else {
+            if(styleEl) styleEl.remove();
+        }
+    };
+
 
     window.clearTransactions = async function() {
         const pass = prompt('أدخل كلمة مرور المدير لتأكيد مسح العمليات:');
@@ -1447,3 +1658,15 @@ if (typeof isFirebaseConfigured !== 'undefined' && isFirebaseConfigured()) {
         }
     });
 }
+
+// --- Auto Backup ---
+setInterval(() => {
+    if(appSettings.autoBackup && typeof db !== 'undefined') {
+        db.ref('/').once('value').then(snap => {
+            if(snap.exists()) {
+                localStorage.setItem('amwaj_auto_backup', JSON.stringify(snap.val()));
+                localStorage.setItem('amwaj_auto_backup_date', new Date().toISOString());
+            }
+        });
+    }
+}, 1000 * 60 * 60 * 6); // Every 6 hours

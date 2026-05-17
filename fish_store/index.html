@@ -356,14 +356,17 @@
                 </div>
 
                 <div id="active-transaction-container" style="display: none; animation: slideDown 0.4s ease-out;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                        <h4 id="transaction-title" style="color: var(--primary-color);">نوع العملية</h4>
-                        <div class="input-group" style="display: flex; align-items: center; gap: 0.5rem;">
-                            <label for="target-fridge"><i class="fas fa-warehouse"></i> المستودع المستهدف:</label>
-                            <select id="target-fridge" class="input-cell" style="width: auto; background: none; border: 1px solid var(--glass-border);">
-                                <option value="fiber" selected>ثلاجة الفيبر</option>
-                                <option value="shop">ثلاجة المحل</option>
-                            </select>
+                    <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 id="transaction-title" style="color: var(--primary-color); margin: 0;">نوع العملية</h4>
+                            <div class="input-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label for="target-fridge"><i class="fas fa-warehouse"></i> المستودع المستهدف:</label>
+                                <select id="target-fridge" class="input-cell" style="width: auto; background: none; border: 1px solid var(--glass-border);">
+                                    <option value="fiber" selected>ثلاجة الفيبر</option>
+                                    <option value="shop">ثلاجة المحل</option>
+                                </select>
+                            </div>
+                        </div>
                         </div>
                     </div>
                     
@@ -462,6 +465,17 @@
                         </div>
                     </div>
 
+                    <!-- Store Identity -->
+                    <div class="card" style="background: rgba(255,255,255,0.02); padding: 1.5rem; border: 1px solid var(--glass-border);">
+                        <label style="display: block; margin-bottom: 1rem; color: var(--primary-color);"><i class="fas fa-store"></i> هوية المنشأة</label>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div>
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">اسم المطعم / المنشأة:</p>
+                                <input type="text" id="fs-store-name" class="input-cell" placeholder="مثال: مطعم أمواج الصياد" style="margin-bottom: 0.5rem; width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Password Management -->
                     <div class="card" style="background: rgba(255,255,255,0.02); padding: 1.5rem; border: 1px solid var(--glass-border);">
                         <label style="display: block; margin-bottom: 1rem; color: var(--text-muted);"><i class="fas fa-lock"></i> إدارة كلمات المرور</label>
@@ -485,7 +499,49 @@
                     <div id="install-card" class="card" style="display: none; background: rgba(59, 130, 246, 0.05); padding: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.2);">
                         <label style="display: block; margin-bottom: 1rem; color: var(--primary-color);"><i class="fas fa-mobile-alt"></i> نسخة الأندرويد</label>
                         <button id="install-app-btn" class="btn-primary" style="width: 100%; margin-top: 0;">تثبيت التطبيق على الشاشة الرئيسية</button>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">قم بتثبيت التطبيق للوصول السريع بدون متصفح.</p>
+                    </div>
+
+                    <!-- Backup Card -->
+                    <div class="card" style="background: rgba(16, 185, 129, 0.05); padding: 1.5rem; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <label style="display: block; margin-bottom: 1rem; color: #10b981;"><i class="fas fa-database"></i> البيانات والنسخ الاحتياطي</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button onclick="exportFishBackup()" class="btn-primary" style="background: #10b981; width: 100%; margin-top: 0; padding: 0.8rem 0.5rem; font-size: 0.8rem;">
+                                <i class="fas fa-file-export"></i> تصدير
+                            </button>
+                            <label class="btn-primary" style="background: var(--primary-color); width: 100%; margin-top: 0; cursor: pointer; padding: 0.8rem 0.5rem; font-size: 0.8rem; display: flex; justify-content: center;">
+                                <i class="fas fa-file-import"></i> استيراد
+                                <input type="file" hidden accept=".json" onchange="importFishBackup(event)">
+                            </label>
+                        </div>
+                        <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">قم بتصدير أو استيراد ملف JSON.</p>
+                    </div>
+
+                    <!-- Alerts & Automation -->
+                    <div class="card" style="background: rgba(139, 92, 246, 0.05); padding: 1.5rem; border: 1px solid rgba(139, 92, 246, 0.2);">
+                        <label style="display: block; margin-bottom: 1rem; color: #8b5cf6;"><i class="fas fa-bell"></i> الإشعارات والأتمتة</label>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                <input type="checkbox" id="fs-enable-sound" checked style="width:20px;height:20px;">
+                                <span style="font-size:0.9rem; color:var(--text-color);">تفعيل الإشعارات الصوتية</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                <input type="checkbox" id="fs-auto-backup" style="width:20px;height:20px;">
+                                <span style="font-size:0.9rem; color:var(--text-color);">نسخ احتياطي يومي تلقائي</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Themes Card -->
+                    <div class="card" style="background: rgba(163, 163, 163, 0.05); padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <label style="display: block; margin-bottom: 1rem; color: var(--primary-color);"><i class="fas fa-palette"></i> تخصيص المظهر</label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <button onclick="setFishTheme('#00d2ff', '#3a7bd5', '#00d2ff', '#3a7bd5')" style="background:linear-gradient(135deg, #00d2ff, #3a7bd5); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                            <button onclick="setFishTheme('#f43f5e', '#fbbf24', '#f43f5e', '#fbbf24')" style="background:linear-gradient(135deg, #f43f5e, #fbbf24); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                            <button onclick="setFishTheme('#10b981', '#3b82f6', '#10b981', '#3b82f6')" style="background:linear-gradient(135deg, #10b981, #3b82f6); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                            <button onclick="setFishTheme('#8b5cf6', '#ec4899', '#8b5cf6', '#ec4899')" style="background:linear-gradient(135deg, #8b5cf6, #ec4899); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                            <button onclick="setFishTheme('#f97316', '#ef4444', '#f97316', '#ef4444')" style="background:linear-gradient(135deg, #f97316, #ef4444); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                            <button onclick="setFishTheme('#2dd4bf', '#0ea5e9', '#2dd4bf', '#0ea5e9')" style="background:linear-gradient(135deg, #2dd4bf, #0ea5e9); height:35px; border-radius:8px; border:2px solid #fff; cursor:pointer;"></button>
+                        </div>
                     </div>
 
                     <!-- System Reset -->

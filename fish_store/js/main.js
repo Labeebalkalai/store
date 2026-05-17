@@ -1,3 +1,18 @@
+window.playSoundEffect = function() {
+    if(localStorage.getItem('fs_enable_sound') !== 'false') {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+            osc.start(); osc.stop(ctx.currentTime + 0.1);
+        } catch(e) {}
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('.section');
@@ -98,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addLog = (log) => { 
         let logs = getItems('transaction_logs'); 
         logs.unshift(log); 
-        if (logs.length > 500) logs.pop(); 
+        if (logs.length > 1000) logs.pop(); 
         saveItems(logs, 'transaction_logs'); 
     };
 
@@ -171,8 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Apply Search Filter
         if (searchVal) {
-            items = items.filter(i => i.name.toLowerCase().includes(searchVal) || i.id.includes(searchVal));
+            items = items.filter(i => i.name.toLowerCase().includes(searchVal) || (i.id && i.id.toLowerCase().includes(searchVal)));
         }
+
+        // Sort by ID (ascending)
+        items.sort((a, b) => {
+            const numA = parseFloat(a.id) || 0;
+            const numB = parseFloat(b.id) || 0;
+            return numA - numB;
+        });
 
         body.innerHTML = ''; 
         let totalWeight = 0;
@@ -206,6 +228,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${item.weight}</td>
                 <td>${item.price}</td>
                 <td>${item.count}</td>
+                <td class="no-print">
+                    <button class="btn-primary" onclick="deleteFridgeItem('${type}', '${item.id}')" style="background:#ef4444; padding:5px 10px; font-size:0.8rem;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
             `;
             body.appendChild(row);
         });
@@ -214,6 +241,97 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tW) tW.textContent = `${totalWeight.toFixed(2)} كجم`;
         if (tP) tP.textContent = `${totalPrice.toLocaleString()} ر.س`;
     };
+
+    window.deleteFridgeItem = (type, id) => {
+        const mPass = localStorage.getItem('manager_password') || 'admin';
+        const pass = prompt('الرجاء إدخال كلمة مرور المدير لحذف هذا الصنف:');
+        if (pass !== mPass) { alert('كلمة مرور خاطئة!'); return; }
+        
+        if (confirm('هل أنت متأكد من حذف هذا الصنف من المخزن؟')) {
+            let items = getItems(type);
+            const filtered = items.filter(i => i.id !== id);
+            saveItems(filtered, type);
+            alert('تم الحذف بنجاح');
+        }
+    };
+
+    window.exportFishBackup = () => {
+        try {
+            const backupData = {
+                fiber_fridge: getItems('fiber'),
+                shop_fridge: getItems('shop'),
+                logs: getItems('transaction_logs'),
+                settings: {
+                    lowStockThreshold: localStorage.getItem('lowStockThreshold'),
+                    manager_password: localStorage.getItem('manager_password'),
+                    keeper_password: localStorage.getItem('keeper_password')
+                },
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `amwaj_fish_store_backup_${new Date().toLocaleDateString('en-CA')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('تم تحميل النسخة الاحتياطية بنجاح ✓');
+        } catch (e) {
+            alert('فشل تصدير النسخة الاحتياطية');
+        }
+    };
+
+    window.importFishBackup = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!confirm('تنبيه: استعادة النسخة ستمسح البيانات الحالية. هل تريد المتابعة؟')) {
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.fiber_fridge) saveItems(data.fiber_fridge, 'fiber');
+                if (data.shop_fridge) saveItems(data.shop_fridge, 'shop');
+                if (data.logs) saveItems(data.logs, 'transaction_logs');
+                if (data.settings) {
+                    if (data.settings.lowStockThreshold) localStorage.setItem('lowStockThreshold', data.settings.lowStockThreshold);
+                    if (data.settings.manager_password) localStorage.setItem('manager_password', data.settings.manager_password);
+                    if (data.settings.keeper_password) localStorage.setItem('keeper_password', data.settings.keeper_password);
+                }
+                alert('تمت استعادة البيانات بنجاح! سيتم إعادة تحميل الصفحة.');
+                location.reload();
+            } catch (err) {
+                alert('خطأ في الملف! تأكد من أنه ملف نسخة احتياطية صالح.');
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    window.setFishTheme = (p, s, g1, g2) => {
+        document.documentElement.style.setProperty('--primary-color', p);
+        document.documentElement.style.setProperty('--secondary-color', s);
+        document.documentElement.style.setProperty('--accent-gradient', `linear-gradient(135deg, ${g1} 0%, ${g2} 100%)`);
+        localStorage.setItem('fs_theme', JSON.stringify({p, s, g1, g2}));
+        alert('تم تغيير المظهر!');
+    };
+
+    // Apply saved theme
+    (function() {
+        const saved = localStorage.getItem('fs_theme');
+        if (saved) {
+            const t = JSON.parse(saved);
+            document.documentElement.style.setProperty('--primary-color', t.p);
+            document.documentElement.style.setProperty('--secondary-color', t.s);
+            document.documentElement.style.setProperty('--accent-gradient', `linear-gradient(135deg, ${t.g1} 0%, ${t.g2} 100%)`);
+        }
+    })();
 
     // --- Fridge Keeper Logic ---
     const transButtons = document.querySelectorAll('.trans-type-btn'), activeCont = document.getElementById('active-transaction-container'), tTitle = document.getElementById('transaction-title'), sText = document.getElementById('save-btn-text'), targetF = document.getElementById('target-fridge'), addI = document.getElementById('add-item-btn'), tableB = document.getElementById('item-table-body');
@@ -322,16 +440,34 @@ document.addEventListener('DOMContentLoaded', () => {
             rows.forEach(r => {
                 const id = r.querySelector('.item-id').value.trim(), name = r.querySelector('.item-name').value.trim(), w = parseFloat(r.querySelector('.item-weight').value) || 0, p = parseFloat(r.querySelector('.item-price').value) || 0, c = parseInt(r.querySelector('.item-count').value) || 0;
                 if (!name) return;
+                
+                // Check if ID is used by a different name
+                const itemWithSameId = items.find(i => i.id === id);
+                if (itemWithSameId && itemWithSameId.name !== name && id !== "") {
+                    errors.push(`الرقم "${id}" مستخدم بالفعل لصنف آخر ("${itemWithSameId.name}")`);
+                    return;
+                }
+
                 const idx = items.findIndex(i => i.id === id || i.name === name);
                 if (currentMode === 'purchase') {
-                    if (idx !== -1) { items[idx].weight = (parseFloat(items[idx].weight) + w).toFixed(2); items[idx].count = (parseInt(items[idx].count) + c).toString(); items[idx].price = (parseFloat(items[idx].price) + p).toFixed(2); items[idx].date = time; }
+                    if (idx !== -1) { 
+                        items[idx].weight = (parseFloat(items[idx].weight) + w).toFixed(2); 
+                        items[idx].count = (parseInt(items[idx].count) + c).toString(); 
+                        items[idx].price = (parseFloat(items[idx].price) + p).toFixed(2); 
+                        items[idx].date = time; 
+                    }
                     else items.push({ id: id || (Date.now() + Math.floor(Math.random()*1000)).toString().slice(-5), name, weight: w.toFixed(2), price: p.toFixed(2), count: c.toString(), date: time });
                 } else {
                     if (idx === -1) errors.push(`الصنف "${name}" غير موجود`);
                     else {
                         const aW = parseFloat(items[idx].weight), aC = parseInt(items[idx].count), aP = parseFloat(items[idx].price);
                         if (aW < w || aC < c) errors.push(`الكمية لـ "${name}" أكبر من المتوفر (${aW} كجم)`);
-                        else { items[idx].weight = (aW - w).toFixed(2); items[idx].count = (aC - c).toString(); items[idx].price = (aP - p).toFixed(2); items[idx].date = time; }
+                        else { 
+                            items[idx].weight = (aW - w).toFixed(2); 
+                            items[idx].count = (aC - c).toString(); 
+                            items[idx].price = (aP - p).toFixed(2); 
+                            items[idx].date = time; 
+                        }
                     }
                 }
             });
@@ -345,11 +481,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     weight: r.querySelector('.item-weight').value, 
                     count: r.querySelector('.item-count').value, 
                     price: r.querySelector('.item-price').value, 
-                    fridge: target 
+                    fridge: target
                 }));
                 saveItems(items, target); 
                 tableB.innerHTML = ''; 
                 ensureOneRow(); 
+                if(window.playSoundEffect) window.playSoundEffect();
                 alert(`تم تنفيذ "${transTypes[currentMode].title}" بنجاح في ${target === 'fiber' ? 'ثلاجة الفيبر' : 'ثلاجة المحل'}`);
             }
         });
@@ -415,8 +552,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (es.length > 0) alert('أخطاء:\n' + es.join('\n'));
             else {
-                rs.forEach(r => addLog({ date: time, type: 'transfer', name: r.querySelector('.item-name').value, weight: r.querySelector('.item-weight').value, count: r.querySelector('.item-count').value, price: r.querySelector('.item-price').value, fridge: 'fiber' }));
-                saveItems(fI, 'fiber'); saveItems(sI, 'shop'); transI.style.display = 'none'; transTB.innerHTML = ''; alert('تم التحويل!');
+                rs.forEach(r => addLog({ 
+                    date: time, 
+                    type: 'transfer', 
+                    name: r.querySelector('.item-name').value, 
+                    weight: r.querySelector('.item-weight').value, 
+                    count: r.querySelector('.item-count').value, 
+                    price: r.querySelector('.item-price').value, 
+                    fridge: 'fiber'
+                }));
+                saveItems(fI, 'fiber'); saveItems(sI, 'shop'); transI.style.display = 'none'; transTB.innerHTML = ''; if(window.playSoundEffect) window.playSoundEffect(); alert('تم التحويل!');
             }
         });
     }
@@ -457,10 +602,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalBodyWidth = document.body.style.width;
             document.body.style.width = '1100px';
 
+            const storeNamePrint = localStorage.getItem('fs_store_name') || 'أمواج_الصياد';
+            const sanitizedName = storeNamePrint.replace(/\s+/g, '_');
             const element = document.body; 
             const opt = {
                 margin:       [10, 10, 10, 10], 
-                filename:     `تقرير_أمواج_الصياد_${sectionId}_${new Date().toLocaleDateString('ar-SA')}.pdf`,
+                filename:     `تقرير_${sanitizedName}_${sectionId}_${new Date().toLocaleDateString('ar-SA')}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { 
                     scale: 2, // Slightly lower scale for better mobile performance/memory
@@ -529,11 +676,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     csv += `${d},${t},${transTypes[l.type]?.title || 'تحويل'},${l.name},${l.unit || '-'},${l.weight},${l.count},${l.price},${l.fridge === 'fiber' ? 'الفيبر' : 'المحل'}\n`;
                 });
 
+                const storeNameCSV = localStorage.getItem('fs_store_name') || 'أمواج_الصياد';
+                const sanitizedNameCSV = storeNameCSV.replace(/\s+/g, '_');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.setAttribute('href', url);
-                link.setAttribute('download', `تقرير_أمواج_الصياد_${new Date().toLocaleDateString('ar-SA')}.csv`);
+                link.setAttribute('download', `تقرير_${sanitizedNameCSV}_${new Date().toLocaleDateString('ar-SA')}.csv`);
                 
                 // Android WebView Fix: Append to body
                 document.body.appendChild(link);
@@ -737,6 +886,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (installCard) installCard.style.display = 'none';
     });
 
+    // --- Settings Logic ---
+    const saveSettingsBtn = document.getElementById('save-all-settings-btn');
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            const thresh = parseFloat(document.getElementById('threshold-input')?.value || 10);
+            localStorage.setItem('lowStockThreshold', thresh);
+
+            const oMP = document.getElementById('old-manager-pass')?.value;
+            const nMP = document.getElementById('manager-pass-input')?.value;
+            const curMP = localStorage.getItem('manager_password') || 'admin';
+            if (oMP && nMP) {
+                if (oMP === curMP) { localStorage.setItem('manager_password', nMP); }
+                else { alert('كلمة مرور المدير القديمة خاطئة'); return; }
+            }
+
+            const oKP = document.getElementById('old-keeper-pass')?.value;
+            const nKP = document.getElementById('keeper-pass-input')?.value;
+            const curKP = localStorage.getItem('keeper_password') || '1234';
+            if (oKP && nKP) {
+                if (oKP === curKP) { localStorage.setItem('keeper_password', nKP); }
+                else { alert('كلمة مرور الأمين القديمة خاطئة'); return; }
+            }
+
+            const storeName = document.getElementById('fs-store-name')?.value.trim();
+            if(storeName) localStorage.setItem('fs_store_name', storeName);
+
+            const soundEnabled = document.getElementById('fs-enable-sound')?.checked;
+            localStorage.setItem('fs_enable_sound', soundEnabled);
+
+            const autoBackup = document.getElementById('fs-auto-backup')?.checked;
+            localStorage.setItem('fs_auto_backup', autoBackup);
+
+            alert('تم حفظ جميع الإعدادات بنجاح!');
+        });
+    }
+
+    // Load Settings visually
+    const fsName = localStorage.getItem('fs_store_name');
+    if(fsName && document.getElementById('fs-store-name')) document.getElementById('fs-store-name').value = fsName;
+
+    const fsSound = localStorage.getItem('fs_enable_sound');
+    if(fsSound !== null && document.getElementById('fs-enable-sound')) document.getElementById('fs-enable-sound').checked = (fsSound === 'true');
+
+    const fsAutoBackup = localStorage.getItem('fs_auto_backup');
+    if(fsAutoBackup !== null && document.getElementById('fs-auto-backup')) document.getElementById('fs-auto-backup').checked = (fsAutoBackup === 'true');
+
     // Initial load
     renderFridgeTable('fiber'); renderFridgeTable('shop'); renderLogs(); ensureOneRow();
 });
@@ -775,3 +970,15 @@ if (typeof firebase !== 'undefined') {
         }
     });
 }
+
+// --- Auto Backup ---
+setInterval(() => {
+    if(localStorage.getItem('fs_auto_backup') === 'true' && typeof db !== 'undefined') {
+        db.ref('/').once('value').then(snap => {
+            if(snap.exists()) {
+                localStorage.setItem('fs_auto_backup_data', JSON.stringify(snap.val()));
+                localStorage.setItem('fs_auto_backup_date', new Date().toISOString());
+            }
+        });
+    }
+}, 1000 * 60 * 60 * 6); // Every 6 hours
