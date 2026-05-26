@@ -28,6 +28,11 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css?v=3">
+    <script>
+        if (navigator.userAgent && navigator.userAgent.includes('Electron')) {
+            document.documentElement.classList.add('electron');
+        }
+    </script>
 </head>
 <body>
 

@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بوابة أنظمة أمواج الصياد</title>
+    <script>
+        if (navigator.userAgent && navigator.userAgent.includes('Electron')) {
+            document.documentElement.classList.add('electron');
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -17,10 +22,6 @@
         body {
             margin: 0;
             padding: 40px 0;
-            background-image: url('fish_store/logo.jpeg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
             color: white;
             font-family: 'Cairo', sans-serif;
             min-height: 100vh;
@@ -45,22 +46,7 @@
             pointer-events: none;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: min(450px, 80vw);
-            height: min(450px, 80vw);
-            background-image: url('fish_store/logo.jpeg');
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0.08; /* More visible elegant watermark */
-            pointer-events: none;
-            z-index: 0;
-        }
+
 
         .container {
             text-align: center;
@@ -216,6 +202,15 @@
             100% { transform: scale(3); opacity: 0; }
         }
     </style>
+<style>
+.electron body {
+    background-image: url('fish_store/logo.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+</style>
 </head>
 <body>
 

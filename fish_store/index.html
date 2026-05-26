@@ -14,6 +14,9 @@
     <link rel="stylesheet" href="css/style.css?v=3">
     <link rel="manifest" href="manifest.json">
     <script>
+        if (navigator.userAgent && navigator.userAgent.includes('Electron')) {
+            document.documentElement.classList.add('electron');
+        }
         function detectMobile() {
             // Only force mobile mode if the screen is physically narrow (< 992px)
             // This allows 'Desktop Mode' on mobile browsers to show the full PC view
