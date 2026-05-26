@@ -1,0 +1,21 @@
+{
+  "name": "amwaj-inventory-app",
+  "version": "1.0.0",
+  "description": "Amwaj Inventory Desktop App - بوابة أنظمة أمواج الصياد",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-packager . AmwajInventory --platform=win32 --arch=x64 --overwrite"
+  },
+  "keywords": [
+    "electron",
+    "desktop",
+    "amwaj"
+  ],
+  "author": "Amwaj",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^42.2.0",
+    "electron-packager": "^17.1.2"
+  }
+}

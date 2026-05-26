@@ -17,7 +17,10 @@
         body {
             margin: 0;
             padding: 40px 0;
-            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            background-image: url('fish_store/logo.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: white;
             font-family: 'Cairo', sans-serif;
             min-height: 100vh;
@@ -27,6 +30,36 @@
             justify-content: center;
             overflow-x: hidden;
             box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Premium blurred backdrop matching the logo colors */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at top right, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(450px, 80vw);
+            height: min(450px, 80vw);
+            background-image: url('fish_store/logo.jpeg');
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.08; /* More visible elegant watermark */
+            pointer-events: none;
+            z-index: 0;
         }
 
         .container {
@@ -212,7 +245,7 @@
 
     <script>
         const container = document.getElementById('particles');
-        for (let i = 0; i < 40; i++) {
+        for (let i = 0; i < 15; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
             const size = Math.random() * 5 + 2;
@@ -221,7 +254,7 @@
             p.style.left = Math.random() * 100 + '%';
             p.style.top = Math.random() * 100 + '%';
             p.style.animationDelay = Math.random() * 20 + 's';
-            p.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            p.style.animationDuration = (Math.random() * 10 + 15) + 's';
             container.appendChild(p);
         }
 
@@ -240,8 +273,8 @@
             fishContainer.appendChild(fish);
             setTimeout(() => fish.remove(), 30000);
         }
-        for(let i=0; i<6; i++) setTimeout(spawnFish, i * 2500);
-        setInterval(spawnFish, 6000);
+        for(let i=0; i<3; i++) setTimeout(spawnFish, i * 3000);
+        setInterval(spawnFish, 12000);
 
         document.addEventListener('click', (e) => {
             const bubble = document.createElement('div');
