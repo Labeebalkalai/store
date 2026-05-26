@@ -1565,6 +1565,7 @@ function renderSettings(container) {
         if(pass === null) return;
         if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
         if(!confirm('سيتم حذف جميع سجلات العمليات (شراء، استهلاك، مرتجع، تالف). هل أنت متأكد؟')) return;
+        try {
             await db.ref('transactions').remove();
             showNotification('تم مسح سجل العمليات بنجاح');
         } catch(e) { showNotification('حدث خطأ أثناء الحذف', 'error'); }
