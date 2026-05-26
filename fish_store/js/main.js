@@ -1333,22 +1333,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Firebase Global Configuration & Sync Logic ---
-    const config = {
-        apiKey: "AIzaSyAFlBpJY53TwsqvFsfgfoLeTTjzKDGB5Ms",
-        authDomain: "amwaaa-c514a.firebaseapp.com",
-        databaseURL: "https://amwaaa-c514a-default-rtdb.firebaseio.com",
-        projectId: "amwaaa-c514a",
-        storageBucket: "amwaaa-c514a.firebasestorage.app",
-        messagingSenderId: "395157441882",
-        appId: "1:395157441882:web:41d226cbbb2059439a7763"
+    const config = window.firebaseConfig || {
+        apiKey: "AIzaSyBRdzpGwxPTou6eJXd4xhtuzSid2n3pOyI",
+        authDomain: "amwaj-inventory-b93e4.firebaseapp.com",
+        databaseURL: "https://amwaj-inventory-b93e4-default-rtdb.firebaseio.com",
+        projectId: "amwaj-inventory-b93e4",
+        storageBucket: "amwaj-inventory-b93e4.firebasestorage.app",
+        messagingSenderId: "592068936028",
+        appId: "1:592068936028:web:912fdf8b08baac492b8199"
     };
 
     const statusDot = document.getElementById('firebase-status');
 
     if (typeof firebase !== 'undefined') {
         try {
-            firebase.initializeApp(config);
-            const db = firebase.database();
+            let db;
+            if (firebase.apps.length === 0) {
+                firebase.initializeApp(config);
+            }
+            db = firebase.database();
             
             // Sign in anonymously to ensure session (optional but helps stability)
             firebase.auth().signInAnonymously().catch(e => console.error("Auth error:", e));
