@@ -1,3 +1,112 @@
+// بوليفيل مخصص ومتطور لعرض نافذة إدخال كلمة المرور بشكل جذاب ومتوافق تماماً مع Electron
+const prompt = function(message, defaultValue = '') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 999999;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            direction: rtl;
+        `;
+        
+        const card = document.createElement('div');
+        card.style.cssText = `
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            width: min(420px, 90%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(99, 102, 241, 0.1);
+            transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+            color: white;
+            box-sizing: border-box;
+        `;
+        
+        card.innerHTML = `
+            <div style="width: 60px; height: 60px; background: rgba(99, 102, 241, 0.1); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #6366f1; margin: 0 auto 20px;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 style="margin: 0 0 10px; font-size: 1.4rem; font-weight: 700; background: linear-gradient(to right, #6366f1, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">نظام الحماية والأمان</h3>
+            <p style="color: #94a3b8; font-size: 0.95rem; margin: 0 0 20px; line-height: 1.6;">${message}</p>
+            <input type="password" id="custom-prompt-input" value="${defaultValue}" style="
+                width: 100%; padding: 14px; border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.3); color: white;
+                font-size: 1.2rem; text-align: center; outline: none;
+                margin-bottom: 20px; transition: all 0.3s;
+                box-sizing: border-box;
+                font-family: sans-serif;
+                letter-spacing: 2px;
+            " placeholder="••••••••">
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="custom-prompt-cancel" style="
+                    flex: 1; padding: 12px; border-radius: 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    background: rgba(255, 255, 255, 0.03); color: #94a3b8; font-weight: bold;
+                    cursor: pointer; transition: 0.3s; font-size: 0.95rem;
+                ">إلغاء</button>
+                <button id="custom-prompt-ok" style="
+                    flex: 1; padding: 12px; border-radius: 12px;
+                    border: none; background: linear-gradient(135deg, #6366f1, #10b981);
+                    color: white; font-weight: bold;
+                    cursor: pointer; transition: 0.3s; font-size: 0.95rem;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                ">تأكيد الدخول</button>
+            </div>
+        `;
+        
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        
+        const input = card.querySelector('#custom-prompt-input');
+        
+        input.onfocus = () => {
+            input.style.borderColor = '#6366f1';
+            input.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.2)';
+        };
+        input.onblur = () => {
+            input.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            input.style.boxShadow = 'none';
+        };
+        
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            card.style.transform = 'scale(1)';
+            input.focus();
+            input.select();
+        }, 30);
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                cleanup(input.value);
+            }
+        });
+        
+        card.querySelector('#custom-prompt-ok').onclick = () => cleanup(input.value);
+        card.querySelector('#custom-prompt-cancel').onclick = () => cleanup(null);
+        
+        function cleanup(value) {
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                overlay.remove();
+                resolve(value);
+            }, 250);
+        }
+    });
+};
+try {
+    window.prompt = prompt;
+} catch (e) {
+    console.warn("Could not override window.prompt globally:", e);
+}
+
 // ==========================================
 // Amwaj Al-Sayyad ERP - Pro Version 1.4.0
 // ==========================================
@@ -64,10 +173,16 @@ let appPasswords = { manager: "admin123", storekeeper: "astore123", actions: "ra
 let appSettings = { lowStockThreshold: 1, thresholdKilo: 1, thresholdLiter: 1, thresholdGram: 100, storeName: 'مطعم أمواج الصياد', contactPhone: '', currencySymbol: 'ر.س', enableSound: true, autoBackup: false, darkMode: true };
 
 function syncSettings() {
-    db.ref('settings/passwords').on('value', (snap) => { if (snap.exists()) appPasswords = snap.val(); else db.ref('settings/passwords').set(appPasswords); });
+    db.ref('settings/passwords').on('value', (snap) => { 
+        if (snap.exists()) {
+            appPasswords = Object.assign({ manager: "admin123", storekeeper: "astore123", actions: "rasheed123321" }, snap.val()); 
+        } else { 
+            db.ref('settings/passwords').set(appPasswords); 
+        } 
+    });
     db.ref('settings/general').on('value', (snap) => { 
         if (snap.exists()) {
-            appSettings = snap.val(); 
+            appSettings = Object.assign({ lowStockThreshold: 1, thresholdKilo: 1, thresholdLiter: 1, thresholdGram: 100, storeName: 'مطعم أمواج الصياد', contactPhone: '', currencySymbol: 'ر.س', enableSound: true, autoBackup: false, darkMode: true }, snap.val()); 
             if(window.toggleDarkMode) window.toggleDarkMode(appSettings.darkMode !== false);
         } else {
             db.ref('settings/general').set(appSettings); 
@@ -78,14 +193,15 @@ function syncSettings() {
 
 document.addEventListener('DOMContentLoaded', () => { syncSettings(); setupNavigation(); updateDateTime(); setInterval(updateDateTime, 1000); loadSection('manager'); });
 
+
 function setupNavigation() {
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const section = item.getAttribute('data-section');
             if (section === 'manager' || section === 'settings') {
-                if (prompt("كلمة مرور المدير:") !== appPasswords.manager) return showNotification('خطأ في الصلاحية!','error');
+                if (await prompt("كلمة مرور المدير:") !== appPasswords.manager) return showNotification('خطأ في الصلاحية!','error');
             } else if (section === 'storekeeper') {
-                if (prompt("كلمة مرور أمين المخزن:") !== appPasswords.storekeeper) return showNotification('خطأ في الصلاحية!','error');
+                if (await prompt("كلمة مرور أمين المخزن:") !== appPasswords.storekeeper) return showNotification('خطأ في الصلاحية!','error');
             }
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
             item.classList.add('active'); loadSection(section);
@@ -140,7 +256,10 @@ window.loadTableData = function(filter, p) {
             if (rows.length === 0) {
                 currentTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">لا توجد عمليات مسجلة حالياً</td></tr>';
             } else {
-                rows.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(r => {
+                // Sort and slice to the top 150 items to keep UI rendering extremely fast
+                rows.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                const rowsToShow = rows.slice(0, 150);
+                rowsToShow.forEach(r => {
                     const map = {purchases:'شراء', sales:'استهلاك', returns:'مرتجع', damaged:'تالف'};
                     const badgeMap = {purchases:'primary', sales:'success', returns:'warning', damaged:'danger'};
                     currentTbody.innerHTML += `
@@ -186,17 +305,18 @@ window.showNotification = (msg, type = 'success') => {
     setTimeout(() => { notif.style.animation = 'fadeOut 0.3s forwards'; setTimeout(() => notif.remove(), 300); }, 3000);
 };
 
+
 window.changePassword = async (type) => {
     const labels = {
         manager: "كلمة مرور المدير",
         storekeeper: "كلمة مرور أمين المخزن",
         actions: "كلمة مرور العمليات / الصندوق"
     };
-    const oldPass = prompt(`تغيير ${labels[type]}\nأدخل كلمة المرور الحالية للتأكيد:`);
+    const oldPass = await prompt(`تغيير ${labels[type]}\nأدخل كلمة المرور الحالية للتأكيد:`);
     if (oldPass === null) return;
     if (oldPass !== appPasswords[type] && oldPass !== 'rasheed123321') return showNotification('كلمة المرور الحالية خاطئة!', 'error');
     
-    const newPass = prompt(`أدخل كلمة المرور الجديدة لـ ${labels[type]}:`);
+    const newPass = await prompt(`أدخل كلمة المرور الجديدة لـ ${labels[type]}:`);
     if (!newPass || newPass.trim().length < 3) return showNotification('كلمة المرور قصيرة جداً!', 'error');
     
     try {
@@ -1153,7 +1273,7 @@ function startModalTime() {
 }
 
 window.editItem = async (key) => {
-    const pass = prompt("لتعديل بيانات هذا الصنف، يرجى إدخال كلمة مرور العمليات:");
+    const pass = await prompt("لتعديل بيانات هذا الصنف، يرجى إدخال كلمة مرور العمليات:");
     if (pass === null) return;
     if (pass === appPasswords.actions || pass === 'rasheed123321') {
         try {
@@ -1227,8 +1347,9 @@ window.updItem = async (key) => {
     }
 };
 
+
 window.delItem = async (key) => {
-    const pass = prompt("لحذف هذا الصنف نهائياً، يرجى إدخال كلمة مرور العمليات:");
+    const pass = await prompt("لحذف هذا الصنف نهائياً، يرجى إدخال كلمة مرور العمليات:");
     if (pass === null) return;
     
     if (pass === appPasswords.actions || pass === 'rasheed123321') {
@@ -1440,18 +1561,17 @@ function renderSettings(container) {
 
 
     window.clearTransactions = async function() {
-        const pass = prompt('أدخل كلمة مرور المدير لتأكيد مسح العمليات:');
+        const pass = await prompt('أدخل كلمة مرور المدير لتأكيد مسح العمليات:');
         if(pass === null) return;
         if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
         if(!confirm('سيتم حذف جميع سجلات العمليات (شراء، استهلاك، مرتجع، تالف). هل أنت متأكد؟')) return;
-        try {
             await db.ref('transactions').remove();
             showNotification('تم مسح سجل العمليات بنجاح');
         } catch(e) { showNotification('حدث خطأ أثناء الحذف', 'error'); }
     };
 
     window.clearInventory = async function() {
-        const pass = prompt('أدخل كلمة مرور المدير لتأكيد مسح المخزن:');
+        const pass = await prompt('أدخل كلمة مرور المدير لتأكيد مسح المخزن:');
         if(pass === null) return;
         if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
         if(!confirm('سيتم حذف جميع أصناف المخزن. هل أنت متأكد؟')) return;
@@ -1462,7 +1582,7 @@ function renderSettings(container) {
     };
 
     window.clearAll = async function() {
-        const pass = prompt('تحذير: ستُمسح جميع البيانات نهائياً!\nأدخل كلمة مرور المدير للتأكيد:');
+        const pass = await prompt('تحذير: ستُمسح جميع البيانات نهائياً!\nأدخل كلمة مرور المدير للتأكيد:');
         if(pass === null) return;
         if(pass !== appPasswords.manager && pass !== 'admin123') return showNotification('كلمة مرور خاطئة!', 'error');
         if(!confirm('⚠️ تنبيه أخير: سيتم حذف المخزن بالكامل وجميع العمليات نهائياً. هل أنت متأكد 100%؟')) return;

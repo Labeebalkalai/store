@@ -1,3 +1,112 @@
+// بوليفيل مخصص ومتطور لعرض نافذة إدخال كلمة المرور بشكل جذاب ومتوافق تماماً مع Electron
+const prompt = function(message, defaultValue = '') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 999999;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            direction: rtl;
+        `;
+        
+        const card = document.createElement('div');
+        card.style.cssText = `
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            width: min(420px, 90%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(99, 102, 241, 0.1);
+            transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+            color: white;
+            box-sizing: border-box;
+        `;
+        
+        card.innerHTML = `
+            <div style="width: 60px; height: 60px; background: rgba(99, 102, 241, 0.1); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #6366f1; margin: 0 auto 20px;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 style="margin: 0 0 10px; font-size: 1.4rem; font-weight: 700; background: linear-gradient(to right, #6366f1, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">نظام الحماية والأمان</h3>
+            <p style="color: #94a3b8; font-size: 0.95rem; margin: 0 0 20px; line-height: 1.6;">${message}</p>
+            <input type="password" id="custom-prompt-input" value="${defaultValue}" style="
+                width: 100%; padding: 14px; border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.3); color: white;
+                font-size: 1.2rem; text-align: center; outline: none;
+                margin-bottom: 20px; transition: all 0.3s;
+                box-sizing: border-box;
+                font-family: sans-serif;
+                letter-spacing: 2px;
+            " placeholder="••••••••">
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="custom-prompt-cancel" style="
+                    flex: 1; padding: 12px; border-radius: 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    background: rgba(255, 255, 255, 0.03); color: #94a3b8; font-weight: bold;
+                    cursor: pointer; transition: 0.3s; font-size: 0.95rem;
+                ">إلغاء</button>
+                <button id="custom-prompt-ok" style="
+                    flex: 1; padding: 12px; border-radius: 12px;
+                    border: none; background: linear-gradient(135deg, #6366f1, #10b981);
+                    color: white; font-weight: bold;
+                    cursor: pointer; transition: 0.3s; font-size: 0.95rem;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                ">تأكيد الدخول</button>
+            </div>
+        `;
+        
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        
+        const input = card.querySelector('#custom-prompt-input');
+        
+        input.onfocus = () => {
+            input.style.borderColor = '#6366f1';
+            input.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.2)';
+        };
+        input.onblur = () => {
+            input.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            input.style.boxShadow = 'none';
+        };
+        
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            card.style.transform = 'scale(1)';
+            input.focus();
+            input.select();
+        }, 30);
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                cleanup(input.value);
+            }
+        });
+        
+        card.querySelector('#custom-prompt-ok').onclick = () => cleanup(input.value);
+        card.querySelector('#custom-prompt-cancel').onclick = () => cleanup(null);
+        
+        function cleanup(value) {
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                overlay.remove();
+                resolve(value);
+            }, 250);
+        }
+    });
+};
+try {
+    window.prompt = prompt;
+} catch (e) {
+    console.warn("Could not override window.prompt globally:", e);
+}
+
 window.playSoundEffect = function() {
     if(localStorage.getItem('fs_enable_sound') !== 'false') {
         try {
@@ -37,8 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Navigation Logic (Desktop & Mobile Sync) ---
     const allLinks = [...navLinks, ...document.querySelectorAll('.mobile-nav-link')];
     
+
     allLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', async (e) => {
             e.preventDefault();
             const sectionId = link.getAttribute('data-section');
             
@@ -47,10 +157,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const kPass = localStorage.getItem('keeper_password') || '1234';
 
             if (sectionId === 'manager') {
-                const pass = prompt('الرجاء إدخال كلمة مرور المدير:');
+                const pass = await prompt('الرجاء إدخال كلمة مرور المدير:');
                 if (pass !== mPass) { alert('كلمة مرور خاطئة!'); return; }
             } else if (sectionId === 'fridge-keeper') {
-                const pass = prompt('الرجاء إدخال كلمة مرور أمين الثلاجات:');
+                const pass = await prompt('الرجاء إدخال كلمة مرور أمين الثلاجات:');
                 if (pass !== kPass) { alert('كلمة مرور خاطئة!'); return; }
             }
 
@@ -137,7 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         body.innerHTML = '';
-        filteredLogs.forEach(log => {
+        // Render only the top 150 matching logs to keep UI incredibly fast
+        const logsToShow = filteredLogs.slice(0, 150);
+        logsToShow.forEach(log => {
             const row = document.createElement('tr');
             const typeInfo = transTypes[log.type] || transTypes.transfer;
             const dateParts = (log.date || '').split('،');
@@ -182,11 +294,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchVal = document.getElementById(`search-${type}`)?.value.toLowerCase() || '';
         
         if (!body) return;
-        let items = getItems(type);
+        let allItems = getItems(type);
         
-        // Apply Search Filter
+        // حساب الإجماليات من كافة العناصر قبل تطبيق فلتر البحث
+        let totalItems = allItems.length;
+        let totalWeight = 0;
+        let totalPrice = 0;
+        allItems.forEach(item => {
+            totalWeight += parseFloat(item.weight) || 0;
+            totalPrice += parseFloat(item.price) || 0;
+        });
+
+        // Apply Search Filter (for display only - totals stay as full inventory)
+        let items = allItems;
         if (searchVal) {
-            items = items.filter(i => i.name.toLowerCase().includes(searchVal) || (i.id && i.id.toLowerCase().includes(searchVal)));
+            items = allItems.filter(i => i.name.toLowerCase().includes(searchVal) || (i.id && i.id.toLowerCase().includes(searchVal)));
         }
 
         // Sort by ID (ascending)
@@ -197,15 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         body.innerHTML = ''; 
-        let totalWeight = 0;
-        let totalPrice = 0;
         
         items.forEach(item => {
             const row = document.createElement('tr');
             const w = parseFloat(item.weight) || 0;
-            const p = parseFloat(item.price) || 0;
-            totalWeight += w;
-            totalPrice += p;
 
             // Low Stock Check (Dynamic Threshold)
             if (w < lowStockThreshold) row.classList.add('low-stock');
@@ -237,14 +354,15 @@ document.addEventListener('DOMContentLoaded', () => {
             body.appendChild(row);
         });
 
-        if (tI) tI.textContent = items.length; 
-        if (tW) tW.textContent = `${totalWeight.toFixed(2)} كجم`;
+        if (tI) tI.textContent = totalItems; 
+        if (tW) tW.textContent = `${totalWeight.toFixed(3)} كجم`;
         if (tP) tP.textContent = `${totalPrice.toLocaleString()} ر.س`;
     };
 
-    window.deleteFridgeItem = (type, id) => {
+
+    window.deleteFridgeItem = async (type, id) => {
         const mPass = localStorage.getItem('manager_password') || 'admin';
-        const pass = prompt('الرجاء إدخال كلمة مرور المدير لحذف هذا الصنف:');
+        const pass = await prompt('الرجاء إدخال كلمة مرور المدير لحذف هذا الصنف:');
         if (pass !== mPass) { alert('كلمة مرور خاطئة!'); return; }
         
         if (confirm('هل أنت متأكد من حذف هذا الصنف من المخزن؟')) {
@@ -333,10 +451,299 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })();
 
+    // --- Scale Items Mapping ---
+    const SCALE_ITEMS = {
+        "1": "ناجل حر",
+        "2": "شريفي",
+        "3": "طرادي",
+        "4": "هامور",
+        "5": "حريد",
+        "6": "قمر",
+        "7": "شعور",
+        "8": "فارس",
+        "9": "بياض",
+        "10": "ديرك",
+        "11": "سلمون",
+        "12": "جمبري كبير",
+        "13": "جمبري وسط",
+        "14": "جمبري مزارع",
+        "15": "استكوزا",
+        "16": "كابوريا",
+        "17": "عربي",
+        "18": "دنيس",
+        "19": "بلطي",
+        "20": "قارص",
+        "21": "فيليه هامور",
+        "22": "حبار",
+        "23": "سي فود بالكاري خضار",
+        "24": "سي فود بشاميل",
+        "25": "سرمد ثوم ليمون",
+        "26": "جمبري بشاميل",
+        "27": "جمبري بالكاري",
+        "28": "جمبري بالخضا",
+        "29": "جمبري صوص لاند",
+        "30": "سورية مكس بالكريمة"
+    };
+
+    function parseScaleBarcode(barcode) {
+        if (!/^[2]\d{12}$/.test(barcode)) {
+            return null;
+        }
+        
+        // EAN-13 Scale Barcode Layout (GS1 Standard):
+        //   [0]    = '2'  (GS1 prefix)
+        //   [1]    = type digit:
+        //       0,1  -> Weight in grams  (/1000 = kg)
+        //       2,3,4 -> Price in halalas (/100 = SAR)  [DIGI / CAS price mode]
+        //       8    -> Price in halalas                 [Mettler / BIZERBA]
+        //       9    -> Price in halalas                 [custom scales]
+        //   [2-6]  = Item PLU code (5 digits)
+        //   [7-11] = Data field: weight (g) or price (halalas)
+        //   [12]   = Check digit
+        const typeDigit = parseInt(barcode[1], 10);
+        const itemIdVal  = barcode.substring(2, 7);
+        const itemId     = parseInt(itemIdVal, 10).toString();
+        const dataVal    = barcode.substring(7, 12);
+        const dataNum    = parseInt(dataVal, 10);
+
+        let weight = null;
+        let price  = null;
+        let barcodeType = 'weight';
+
+        // --- الكشف التلقائي من رقم النوع في الباركود نفسه (GS1) ---
+        // typeDigit 0 أو 1 → يحتوي على وزن بالجرام (/1000)
+        // typeDigit 2 أو 7 → يحتوي على وزن بالجرام (/1000)
+        // typeDigit 3, 4, 8, 9 → يحتوي على سعر بالهللة (/100)
+        const manualMode = localStorage.getItem('scale_barcode_mode'); // إعداد يدوي اختياري
+
+        if (manualMode === 'price') {
+            // إعداد يدوي: قراءة سعر
+            price = dataNum / 100;
+            barcodeType = 'price';
+        } else if (manualMode === 'weight') {
+            // إعداد يدوي: قراءة وزن
+            weight = dataNum / 1000;
+            barcodeType = 'weight';
+        } else {
+            // الكشف التلقائي حسب معيار GS1 والترميز المحلي المشهور في الموازين
+            if (typeDigit === 0 || typeDigit === 1) {
+                weight = dataNum / 1000; // جرام -> كيلو
+                barcodeType = 'weight';
+            } else if (typeDigit === 2 || typeDigit === 7) {
+                weight = dataNum / 1000; // جرام -> كيلو (قراءة الوزن كما كان سابقاً)
+                barcodeType = 'weight';
+            } else {
+                // typeDigit: 3, 4, 8, 9 -> سعر
+                price = dataNum / 100;   // هللة -> ريال
+                barcodeType = 'price';
+            }
+        }
+
+        // Debug
+        console.log('[Barcode] raw=' + barcode + ' | typeDigit=' + typeDigit +
+                    ' | item=' + itemId + ' | data=' + dataNum +
+                    ' | mode=' + barcodeType +
+                    ' | weight=' + weight + 'kg | price=' + price + 'SAR');
+
+        return { itemId, weight, price, barcodeType };
+    }
+
+    function getScalePrices() {
+        try {
+            const prices = localStorage.getItem('scale_item_prices');
+            let parsed = prices ? JSON.parse(prices) : {};
+            
+            // التحقق من وجود أسعار فعلية أكبر من الصفر
+            const hasPrices = Object.values(parsed).some(val => parseFloat(val) > 0);
+            if (!hasPrices) {
+                const backup = localStorage.getItem('scale_item_prices_local');
+                if (backup) {
+                    parsed = JSON.parse(backup);
+                }
+            }
+            return parsed;
+        } catch (e) {
+            console.error("Error parsing scale prices:", e);
+            return {};
+        }
+    }
+
+    function loadScalePricesUI() {
+        const container = document.getElementById('scale-prices-container');
+        if (!container) return;
+        
+        const prices = getScalePrices();
+        container.innerHTML = '';
+        
+        Object.keys(SCALE_ITEMS).forEach(itemId => {
+            const name = SCALE_ITEMS[itemId];
+            const price = prices[itemId] !== undefined ? prices[itemId] : 0;
+            
+            const div = document.createElement('div');
+            div.className = 'scale-price-item';
+            div.style.cssText = 'display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);';
+            div.innerHTML = `
+                <span style="font-size: 0.85rem; color: #fff; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name} (رقم ${itemId})</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="number" class="scale-price-input" data-id="${itemId}" value="${price}" step="0.5" min="0" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; text-align: center; font-size: 0.9rem;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">ر.س</span>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // Returns { name, unitPrice }
+    // directPrice: if the barcode already embedded a price (SAR), pass it here so
+    // we can still derive unitPrice for partial-transfer calculations.
+    function getItemInfoFromBarcode(itemId, targetFridge, directPrice) {
+        let name = SCALE_ITEMS[itemId] || "";
+        let unitPrice = 0;
+        
+        // 1. Get unitPrice from the custom configured scale prices
+        const scalePrices = getScalePrices();
+        if (scalePrices[itemId] !== undefined) {
+            unitPrice = parseFloat(scalePrices[itemId]) || 0;
+        }
+        
+        // 2. Fallback: Search in targetFridge items
+        const targetItems = getItems(targetFridge);
+        const itemInTarget = targetItems.find(i => i.id === itemId || parseInt(i.id, 10) === parseInt(itemId, 10));
+        if (itemInTarget) {
+            if (!name) name = itemInTarget.name;
+            if (unitPrice === 0) {
+                const w = parseFloat(itemInTarget.weight) || 0;
+                const p = parseFloat(itemInTarget.price) || 0;
+                if (w > 0) unitPrice = p / w;
+            }
+        }
+        
+        // 3. Fallback: Search in otherFridge
+        if (!name || unitPrice === 0) {
+            const otherFridge = targetFridge === 'fiber' ? 'shop' : 'fiber';
+            const otherItems = getItems(otherFridge);
+            const itemInOther = otherItems.find(i => i.id === itemId || parseInt(i.id, 10) === parseInt(itemId, 10));
+            if (itemInOther) {
+                if (!name) name = itemInOther.name;
+                if (unitPrice === 0) {
+                    const w = parseFloat(itemInOther.weight) || 0;
+                    const p = parseFloat(itemInOther.price) || 0;
+                    if (w > 0) unitPrice = p / w;
+                }
+            }
+        }
+        
+        // 4. Fallback: Search in transaction logs
+        if (name && unitPrice === 0) {
+            if (directPrice !== null && directPrice !== undefined && directPrice > 0) {
+                // unitPrice will be filled later from the calling context
+            } else {
+                const logs = getItems('transaction_logs');
+                const lastLog = logs.find(l => l.name === name);
+                if (lastLog) {
+                    const w = parseFloat(lastLog.weight) || 0;
+                    const p = parseFloat(lastLog.price) || 0;
+                    if (w > 0) unitPrice = p / w;
+                }
+            }
+        }
+        
+        return { name, unitPrice };
+    }
+
+    /**
+     * Resolves weight + price ready to fill a table row.
+     * - Weight barcode: weight from barcode, price = weight x unitPrice
+     * - Price barcode:  price from barcode directly; weight back-calculated if possible
+     */
+    function resolveRowValues(parsed, targetFridge) {
+        const { name, unitPrice } = getItemInfoFromBarcode(parsed.itemId, targetFridge, parsed.price);
+        let weight = (parsed.weight !== null) ? parsed.weight : 0;
+        let price  = 0;
+
+        if (parsed.barcodeType === 'price') {
+            // Price read directly from barcode
+            price = parsed.price || 0;
+            // Back-calculate weight if we have a unit price
+            if (unitPrice > 0 && price > 0) {
+                weight = price / unitPrice;
+            }
+        } else {
+            // Weight read from barcode, derive price
+            price = weight * unitPrice;
+        }
+
+        return { itemId: parsed.itemId, name, weight, price };
+    }
+
     // --- Fridge Keeper Logic ---
     const transButtons = document.querySelectorAll('.trans-type-btn'), activeCont = document.getElementById('active-transaction-container'), tTitle = document.getElementById('transaction-title'), sText = document.getElementById('save-btn-text'), targetF = document.getElementById('target-fridge'), addI = document.getElementById('add-item-btn'), tableB = document.getElementById('item-table-body');
     let currentMode = 'purchase';
     const ensureOneRow = () => { if (tableB && tableB.children.length === 0) addI.click(); };
+
+    const barcodeScannerInput = document.getElementById('barcode-scanner-input');
+    if (barcodeScannerInput) {
+        const handleBarcodeScannerInput = () => {
+            const val = barcodeScannerInput.value.trim();
+            if (/^[2]\d{12}$/.test(val)) {
+                const parsed = parseScaleBarcode(val);
+                if (parsed) {
+                    let target = targetF.value;
+                    if (currentMode === 'purchase') target = 'fiber';
+                    if (currentMode === 'sales') target = 'shop';
+                    
+                    const { itemId, name, weight, price } = resolveRowValues(parsed, target);
+                    
+                    const rows = tableB.querySelectorAll('.input-row');
+                    let targetRow = null;
+                    for (let i = 0; i < rows.length; i++) {
+                        const r = rows[i];
+                        const rId = r.querySelector('.item-id').value.trim();
+                        const rName = r.querySelector('.item-name').value.trim();
+                        const rWeight = r.querySelector('.item-weight').value.trim();
+                        if (!rId && !rName && !rWeight) {
+                            targetRow = r;
+                            break;
+                        }
+                    }
+                    
+                    if (!targetRow) {
+                        addI.click();
+                        targetRow = tableB.lastElementChild;
+                    }
+                    
+                    if (targetRow) {
+                        targetRow.querySelector('.item-id').value = itemId;
+                        targetRow.querySelector('.item-name').value = name;
+                        targetRow.querySelector('.item-weight').value = weight.toFixed(3);
+                        targetRow.querySelector('.item-price').value = price.toFixed(2);
+                        targetRow.querySelector('.item-count').value = '1';
+                        
+                        if (price === 0) {
+                            setTimeout(() => {
+                                const priceInput = targetRow.querySelector('.item-price');
+                                if (priceInput) {
+                                    priceInput.focus();
+                                    priceInput.select();
+                                }
+                            }, 100);
+                        }
+                    }
+                    
+                    barcodeScannerInput.value = '';
+                    barcodeScannerInput.focus();
+                    if(window.playSoundEffect) window.playSoundEffect();
+                }
+            }
+        };
+        barcodeScannerInput.addEventListener('input', handleBarcodeScannerInput);
+        barcodeScannerInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleBarcodeScannerInput();
+            }
+        });
+    }
 
     transButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -358,6 +765,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tableB.innerHTML = ''; ensureOneRow();
             transButtons.forEach(b => b.style.transform = 'scale(1)'); btn.style.transform = 'scale(1.05)';
+            
+            if (barcodeScannerInput) {
+                setTimeout(() => barcodeScannerInput.focus(), 100);
+            }
         });
     });
 
@@ -378,6 +789,47 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameInput = row.querySelector('.item-name');
             const idInput = row.querySelector('.item-id');
             attachAutocomplete(nameInput, idInput);
+            
+            const handleBarcode = (e) => {
+                const val = e.target.value.trim();
+                if (/^[2]\d{12}$/.test(val)) {
+                    const parsed = parseScaleBarcode(val);
+                    if (parsed) {
+                        let target = targetF.value;
+                        if (currentMode === 'purchase') target = 'fiber';
+                        if (currentMode === 'sales') target = 'shop';
+                        
+                        const { itemId, name, weight, price } = resolveRowValues(parsed, target);
+                        
+                        row.querySelector('.item-id').value = itemId;
+                        row.querySelector('.item-name').value = name;
+                        row.querySelector('.item-weight').value = weight.toFixed(3);
+                        row.querySelector('.item-price').value = price.toFixed(2);
+                        row.querySelector('.item-count').value = '1';
+                        
+                        if(window.playSoundEffect) window.playSoundEffect();
+                        
+                        setTimeout(() => {
+                            if (price === 0) {
+                                const priceInput = row.querySelector('.item-price');
+                                if (priceInput) {
+                                    priceInput.focus();
+                                    priceInput.select();
+                                }
+                            } else {
+                                addI.click();
+                                const nextRow = tableB.lastElementChild;
+                                if (nextRow) {
+                                    nextRow.querySelector('.item-id').focus();
+                                }
+                            }
+                        }, 100);
+                    }
+                }
+            };
+            idInput.addEventListener('input', handleBarcode);
+            nameInput.addEventListener('input', handleBarcode);
+            
             nameInput.focus();
         });
     }
@@ -451,21 +903,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const idx = items.findIndex(i => i.id === id || i.name === name);
                 if (currentMode === 'purchase') {
                     if (idx !== -1) { 
-                        items[idx].weight = (parseFloat(items[idx].weight) + w).toFixed(2); 
+                        items[idx].weight = (parseFloat(items[idx].weight) + w).toFixed(3); 
                         items[idx].count = (parseInt(items[idx].count) + c).toString(); 
                         items[idx].price = (parseFloat(items[idx].price) + p).toFixed(2); 
                         items[idx].date = time; 
                     }
-                    else items.push({ id: id || (Date.now() + Math.floor(Math.random()*1000)).toString().slice(-5), name, weight: w.toFixed(2), price: p.toFixed(2), count: c.toString(), date: time });
+                    else items.push({ id: id || (Date.now() + Math.floor(Math.random()*1000)).toString().slice(-5), name, weight: w.toFixed(3), price: p.toFixed(2), count: c.toString(), date: time });
                 } else {
                     if (idx === -1) errors.push(`الصنف "${name}" غير موجود`);
                     else {
-                        const aW = parseFloat(items[idx].weight), aC = parseInt(items[idx].count), aP = parseFloat(items[idx].price);
-                        if (aW < w || aC < c) errors.push(`الكمية لـ "${name}" أكبر من المتوفر (${aW} كجم)`);
-                        else { 
-                            items[idx].weight = (aW - w).toFixed(2); 
-                            items[idx].count = (aC - c).toString(); 
-                            items[idx].price = (aP - p).toFixed(2); 
+                        const aW = parseFloat(items[idx].weight) || 0, aC = parseInt(items[idx].count) || 0, aP = parseFloat(items[idx].price) || 0;
+                        if (aW < w) {
+                            errors.push(`الكمية لـ "${name}" أكبر من المتوفر (${aW} كجم)`);
+                        } else { 
+                            items[idx].weight = (aW - w).toFixed(3); 
+                            items[idx].count = Math.max(0, aC - c).toString(); 
+                            items[idx].price = Math.max(0, aP - p).toFixed(2); 
                             items[idx].date = time; 
                         }
                     }
@@ -492,9 +945,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Transfer Logic ---
     const showTB = document.getElementById('show-transfer-btn'), transI = document.getElementById('transfer-interface'), transTB = document.getElementById('transfer-table-body'), addTI = document.getElementById('add-transfer-item-btn'), confT = document.getElementById('confirm-transfer-btn');
-    if (showTB) showTB.addEventListener('click', () => { transI.style.display = 'block'; if (transTB.children.length === 0) addTI.click(); });
+    
+    // --- Transfer Barcode Scanner Logic ---
+    const transferBarcodeInput = document.getElementById('transfer-barcode-input');
+    
+    function handleTransferBarcodeScan(val) {
+        val = val.trim();
+        if (!/^[2]\d{12}$/.test(val)) return;
+        const parsed = parseScaleBarcode(val);
+        if (!parsed) return;
+        
+        // Resolve weight + price from barcode (fiber fridge is always the source)
+        const { itemId, name, weight, price } = resolveRowValues(parsed, 'fiber');
+        
+        // Check if an empty row already exists
+        const rows = transTB.querySelectorAll('.transfer-row');
+        let targetRow = null;
+        for (let i = 0; i < rows.length; i++) {
+            const r = rows[i];
+            const rId = r.querySelector('.item-id').value.trim();
+            const rName = r.querySelector('.item-name').value.trim();
+            const rWeight = r.querySelector('.item-weight').value.trim();
+            if (!rId && !rName && !rWeight) {
+                targetRow = r;
+                break;
+            }
+        }
+        
+        if (!targetRow) {
+            addTI.click();
+            targetRow = transTB.lastElementChild;
+        }
+        
+        if (targetRow) {
+            targetRow.querySelector('.item-id').value = itemId;
+            targetRow.querySelector('.item-name').value = name;
+            targetRow.querySelector('.item-weight').value = weight.toFixed(3);
+            targetRow.querySelector('.item-price').value = price.toFixed(2);
+            targetRow.querySelector('.item-count').value = '1';
+            
+            if (price === 0) {
+                setTimeout(() => {
+                    const priceInput = targetRow.querySelector('.item-price');
+                    if (priceInput) {
+                        priceInput.focus();
+                        priceInput.select();
+                    }
+                }, 100);
+            }
+        }
+        
+        if (transferBarcodeInput) {
+            transferBarcodeInput.value = '';
+            transferBarcodeInput.focus();
+        }
+        if (window.playSoundEffect) window.playSoundEffect();
+    }
+    
+    if (transferBarcodeInput) {
+        transferBarcodeInput.addEventListener('input', () => handleTransferBarcodeScan(transferBarcodeInput.value));
+        transferBarcodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleTransferBarcodeScan(transferBarcodeInput.value);
+            }
+        });
+    }
+    
+    if (showTB) showTB.addEventListener('click', () => {
+        transI.style.display = 'block';
+        if (transTB.children.length === 0) addTI.click();
+        // Auto-focus barcode input when transfer opens
+        if (transferBarcodeInput) setTimeout(() => transferBarcodeInput.focus(), 150);
+    });
     if (document.getElementById('cancel-transfer-btn')) document.getElementById('cancel-transfer-btn').addEventListener('click', () => { transI.style.display = 'none'; transTB.innerHTML = ''; });
     if (addTI) {
         addTI.addEventListener('click', () => {
@@ -502,15 +1026,49 @@ document.addEventListener('DOMContentLoaded', () => {
             const dateParts = timeStr.split('،'), day = dateParts[0], time = dateParts.slice(1).join('،');
             r.className = 'transfer-row';
             r.innerHTML = `<td><input type="text" class="input-cell item-id" placeholder="001"></td><td><input type="text" class="input-cell item-name" placeholder="اسم السمك"></td><td class="item-day">${day}</td><td class="item-date">${time}</td><td><input type="number" class="input-cell item-weight" placeholder="0.00"></td><td><input type="number" class="input-cell item-price" placeholder="0.00"></td><td><input type="number" class="input-cell item-count" placeholder="1"></td><td><button class="delete-btn" style="background:none;border:none;color:#f87171;cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>`;
-            r.querySelector('.delete-btn').addEventListener('click', () => r.remove()); 
+            r.querySelector('.delete-btn').addEventListener('click', () => r.remove());
             transTB.appendChild(r);
-            attachAutocomplete(r.querySelector('.item-name'), r.querySelector('.item-id'));
+            
+            // Wire barcode parsing to the item-id field of this row
+            const idInput = r.querySelector('.item-id');
+            const nameInput = r.querySelector('.item-name');
+            
+            const handleRowBarcode = (e) => {
+                const val = e.target.value.trim();
+                if (!/^[2]\d{12}$/.test(val)) return;
+                const parsed = parseScaleBarcode(val);
+                if (!parsed) return;
+                const { itemId, name, weight, price } = resolveRowValues(parsed, 'fiber');
+                r.querySelector('.item-id').value = itemId;
+                r.querySelector('.item-name').value = name;
+                r.querySelector('.item-weight').value = weight.toFixed(3);
+                r.querySelector('.item-price').value = price.toFixed(2);
+                r.querySelector('.item-count').value = '1';
+                if (window.playSoundEffect) window.playSoundEffect();
+                
+                if (price === 0) {
+                    setTimeout(() => {
+                        const priceInput = r.querySelector('.item-price');
+                        if (priceInput) {
+                            priceInput.focus();
+                            priceInput.select();
+                        }
+                    }, 100);
+                } else {
+                    // Auto-focus the transfer barcode input for the next scan
+                    if (transferBarcodeInput) setTimeout(() => transferBarcodeInput.focus(), 100);
+                }
+            };
+            idInput.addEventListener('input', handleRowBarcode);
+            nameInput.addEventListener('input', handleRowBarcode);
+            
+            attachAutocomplete(nameInput, idInput);
         });
     }
     if (confT) {
-        confT.addEventListener('click', () => {
+        confT.addEventListener('click', async () => {
             const kPass = localStorage.getItem('keeper_password') || '1234';
-            const pass = prompt('الرجاء إدخال كلمة مرور التحويل (أمين الثلاجات):');
+            const pass = await prompt('الرجاء إدخال كلمة مرور التحويل (أمين الثلاجات):');
             if (pass !== kPass) { alert('كلمة مرور خاطئة!'); return; }
             
             const rs = document.querySelectorAll('.transfer-row'); if (rs.length === 0) return;
@@ -524,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
                               aC = parseInt(fI[idx].count) || 0,
                               aP = parseFloat(fI[idx].price) || 0;
                         
-                        if (aW < w || aC < c) {
+                        if (aW < w) {
                             es.push(`الكمية لـ "${n}" أكبر من المتوفر (${aW} كجم)`);
                         } else {
                             let priceToTransfer = p;
@@ -533,19 +1091,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                 priceToTransfer = (aP / (aW || 1)) * w;
                             }
                             
-                            fI[idx].weight = (aW - w).toFixed(2); 
-                            fI[idx].count = (aC - c).toString(); 
-                            fI[idx].price = (aP - priceToTransfer).toFixed(2);
+                            fI[idx].weight = (aW - w).toFixed(3); 
+                            fI[idx].count = Math.max(0, aC - c).toString(); 
+                            fI[idx].price = Math.max(0, aP - priceToTransfer).toFixed(2);
                             fI[idx].date = time;
                             
                             const sIdx = sI.findIndex(i => i.id === id || i.name === n);
                             if (sIdx !== -1) { 
-                                sI[sIdx].weight = (parseFloat(sI[sIdx].weight) + w).toFixed(2); 
+                                sI[sIdx].weight = (parseFloat(sI[sIdx].weight) + w).toFixed(3); 
                                 sI[sIdx].count = (parseInt(sI[sIdx].count) + c).toString(); 
                                 sI[sIdx].price = (parseFloat(sI[sIdx].price) + priceToTransfer).toFixed(2); 
                                 sI[sIdx].date = time; 
                             } else {
-                                sI.push({ id: id || fI[idx].id, name: n, weight: w.toFixed(2), price: priceToTransfer.toFixed(2), count: c.toString(), date: time });
+                                sI.push({ id: id || fI[idx].id, name: n, weight: w.toFixed(3), price: priceToTransfer.toFixed(2), count: c.toString(), date: time });
                             }
                         }
                 }
@@ -701,9 +1259,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('search-shop')?.addEventListener('input', () => renderFridgeTable('shop'));
     document.getElementById('search-logs')?.addEventListener('input', renderLogs);
 
-    if (cL) cL.addEventListener('click', () => { 
+    if (cL) cL.addEventListener('click', async () => { 
         const mPass = localStorage.getItem('manager_password') || 'admin';
-        const pass = prompt('الرجاء إدخال كلمة مرور المدير لمسح السجلات:');
+        const pass = await prompt('الرجاء إدخال كلمة مرور المدير لمسح السجلات:');
         if (pass !== mPass) { alert('كلمة مرور خاطئة!'); return; }
         
         if (confirm('هل أنت متأكد من مسح جميع السجلات؟ لا يمكن التراجع عن هذه الخطوة.')) { 
@@ -759,10 +1317,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
     if (factoryResetBtn) {
-        factoryResetBtn.addEventListener('click', () => {
+        factoryResetBtn.addEventListener('click', async () => {
             const mPass = localStorage.getItem('manager_password') || 'admin';
-            const pass = prompt('لإجراء تهيئة المصنع، الرجاء إدخال كلمة مرور المدير للتأكيد:');
+            const pass = await prompt('لإجراء تهيئة المصنع، الرجاء إدخال كلمة مرور المدير للتأكيد:');
             if (pass !== mPass) { alert('كلمة مرور خاطئة! لا يمكن التهيئة.'); return; }
 
             if (confirm('تحذير نهائي: سيتم حذف كافة البيانات (المخزون، السجلات، الإعدادات). هل أنت متأكد تماماً؟')) {
@@ -824,8 +1383,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (snap.exists()) {
                         const data = snap.val();
                         const items = Array.isArray(data) ? data : Object.values(data);
-                        localStorage.setItem(localKey, JSON.stringify(items));
-                        if (renderFn) renderFn();
+                        const newStr = JSON.stringify(items);
+                        const oldStr = localStorage.getItem(localKey);
+                        // Only update and re-render if the data actually changed
+                        if (newStr !== oldStr) {
+                            localStorage.setItem(localKey, newStr);
+                            if (renderFn) renderFn();
+                        }
                     }
                 }, (err) => {
                     console.error(`Firebase Error (${path}):`, err);
@@ -837,6 +1401,32 @@ document.addEventListener('DOMContentLoaded', () => {
             startSync('fiber_fridge_items', 'fiber_fridge_items', () => renderFridgeTable('fiber'));
             sync_shop = startSync('shop_fridge_items', 'shop_fridge_items', () => renderFridgeTable('shop'));
             sync_logs = startSync('transaction_logs', 'transaction_logs', renderLogs);
+
+            // Sync scale item prices separately to preserve the key-value dictionary structure
+            const scalePricesRef = db.ref('scale_item_prices');
+            scalePricesRef.once('value').then(snap => {
+                if (!snap.exists()) {
+                    const localData = localStorage.getItem('scale_item_prices');
+                    if (localData) {
+                        scalePricesRef.set(JSON.parse(localData));
+                    }
+                }
+            });
+            scalePricesRef.on('value', (snap) => {
+                if (snap.exists() && snap.val()) {
+                    const data = snap.val();
+                    if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                        const newStr = JSON.stringify(data);
+                        const oldStr = localStorage.getItem('scale_item_prices');
+                        if (newStr !== oldStr) {
+                            localStorage.setItem('scale_item_prices', newStr);
+                            if (typeof loadScalePricesUI === 'function') {
+                                loadScalePricesUI();
+                            }
+                        }
+                    }
+                }
+            });
 
         } catch (err) {
             console.error("Firebase Setup Error:", err);
@@ -918,7 +1508,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const autoBackup = document.getElementById('fs-auto-backup')?.checked;
             localStorage.setItem('fs_auto_backup', autoBackup);
 
+            // Save Scale Prices
+            const prices = {};
+            document.querySelectorAll('.scale-price-input').forEach(input => {
+                const itemId = input.getAttribute('data-id');
+                const val = parseFloat(input.value) || 0;
+                prices[itemId] = val;
+            });
+            localStorage.setItem('scale_item_prices', JSON.stringify(prices));
+            localStorage.setItem('scale_item_prices_local', JSON.stringify(prices)); // حفظ نسخة احتياطية محلية محمية من تصفير السحابة
+
+            // Save Barcode Mode (empty string = auto-detect)
+            const barcodeMode = document.getElementById('fs-barcode-mode')?.value;
+            if (barcodeMode === '') {
+                localStorage.removeItem('scale_barcode_mode'); // كشف تلقائي
+            } else if (barcodeMode) {
+                localStorage.setItem('scale_barcode_mode', barcodeMode);
+            }
+            
+            // Sync with Firebase if available
+            if (typeof firebase !== 'undefined') {
+                try {
+                    firebase.database().ref('scale_item_prices').set(prices);
+                } catch(e) { console.error("Firebase save error:", e); }
+            }
+
             alert('تم حفظ جميع الإعدادات بنجاح!');
+
         });
     }
 
@@ -932,8 +1548,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const fsAutoBackup = localStorage.getItem('fs_auto_backup');
     if(fsAutoBackup !== null && document.getElementById('fs-auto-backup')) document.getElementById('fs-auto-backup').checked = (fsAutoBackup === 'true');
 
+    // Load barcode mode setting into UI
+    const fsBarcodeMode = localStorage.getItem('scale_barcode_mode');
+    const fsBarcodeModeEl = document.getElementById('fs-barcode-mode');
+    if (fsBarcodeModeEl) {
+        fsBarcodeModeEl.value = fsBarcodeMode || ''; // '' = auto-detect
+    }
+
+
     // Initial load
     renderFridgeTable('fiber'); renderFridgeTable('shop'); renderLogs(); ensureOneRow();
+    if (typeof loadScalePricesUI === 'function') {
+        loadScalePricesUI();
+    }
 });
 
 // --- PREMIUM TOUCHES ---
