@@ -123,6 +123,12 @@ window.playSoundEffect = function() {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DB reference globally in main.js
+    let db;
+    if (typeof firebase !== 'undefined') {
+        db = firebase.database();
+    }
+
     const navLinks = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('.section');
     const sectionTitle = document.getElementById('current-section-title');
@@ -215,7 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const saveItems = (items, type) => {
         const path = type === 'fiber' ? 'fiber_fridge_items' : type === 'shop' ? 'shop_fridge_items' : 'transaction_logs';
-        if (typeof firebase !== 'undefined') firebase.database().ref(path).set(items);
+        if (db) {
+            db.ref(path).set(items)
+                .then(() => console.log(`Successfully synced ${path} to Firebase.`))
+                .catch(err => console.error(`Error syncing ${path} to Firebase:`, err));
+        }
         localStorage.setItem(path, JSON.stringify(items));
         if (type === 'transaction_logs') renderLogs(); else renderFridgeTable(type);
     };
@@ -1309,11 +1319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         appId: "1:592068936028:web:912fdf8b08baac492b8199"
     };
 
-    const statusDot = document.getElementById('firebase-status');
+    const statusDot = document.getElementById('firebase-status-dot');
 
     if (typeof firebase !== 'undefined') {
         try {
-            let db;
             if (firebase.apps.length === 0) {
                 firebase.initializeApp(config);
             }
@@ -1567,9 +1576,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear old password fields for security
             document.getElementById('old-manager-pass').value = '';
             document.getElementById('old-keeper-pass').value = '';
-
             // Sync with Firebase if available
-            if (typeof firebase !== 'undefined') {
+            if (db) {
                 try {
                     const settingsData = {
                         lowStockThreshold: thresh.toString(),
@@ -1579,8 +1587,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         fs_enable_sound: soundEnabled.toString(),
                         fs_auto_backup: autoBackup.toString()
                     };
-                    firebase.database().ref('fish_settings').set(settingsData);
-                    firebase.database().ref('scale_item_prices').set(prices);
+                    db.ref('fish_settings').set(settingsData);
+                    db.ref('scale_item_prices').set(prices);
                 } catch(e) { console.error("Firebase save error:", e); }
             }
 
@@ -1649,11 +1657,10 @@ if (typeof firebase !== 'undefined') {
         }
     });
 }
-
 // --- Auto Backup ---
 setInterval(() => {
-    if(localStorage.getItem('fs_auto_backup') === 'true' && typeof db !== 'undefined') {
-        db.ref('/').once('value').then(snap => {
+    if(localStorage.getItem('fs_auto_backup') === 'true' && typeof firebase !== 'undefined') {
+        firebase.database().ref('/').once('value').then(snap => {
             if(snap.exists()) {
                 localStorage.setItem('fs_auto_backup_data', JSON.stringify(snap.val()));
                 localStorage.setItem('fs_auto_backup_date', new Date().toISOString());

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amwaj-v4';
+const CACHE_NAME = 'amwaj-v6';
 const ASSETS = [
     './',
     './index.html',
@@ -14,6 +14,7 @@ self.addEventListener('install', (e) => {
             return cache.addAll(ASSETS);
         })
     );
+    self.skipWaiting(); // Force the waiting service worker to become active immediately
 });
 
 self.addEventListener('activate', (e) => {
@@ -22,14 +23,22 @@ self.addEventListener('activate', (e) => {
             return Promise.all(
                 keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
             );
+        }).then(() => {
+            return self.clients.claim(); // Force active service worker to take control of all clients immediately
         })
     );
 });
 
 self.addEventListener('fetch', (e) => {
+    // Network-first strategy for dynamic caching stability
     e.respondWith(
-        caches.match(e.request).then((res) => {
-            return res || fetch(e.request);
-        })
+        fetch(e.request)
+            .then((response) => {
+                return response;
+            })
+            .catch(() => {
+                // Ignore search query parameters (e.g. ?v=5) during offline cache retrieval
+                return caches.match(e.request, { ignoreSearch: true });
+            })
     );
 });
