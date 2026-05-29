@@ -1306,14 +1306,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         await db.ref('fiber_fridge_items').remove();
                         await db.ref('shop_fridge_items').remove();
                         await db.ref('transaction_logs').remove();
-                        await db.ref('scale_item_prices').remove();
                         await db.ref('fish_settings').remove();
                         console.log("Firebase cleared successfully during factory reset.");
                     } catch (e) {
                         console.error("Firebase clear error:", e);
                     }
                 }
+                
+                // Preserve scale item prices in localStorage
+                const scalePrices = localStorage.getItem('scale_item_prices');
                 localStorage.clear();
+                if (scalePrices) {
+                    localStorage.setItem('scale_item_prices', scalePrices);
+                }
+                
                 alert('تمت تهيئة النظام بالكامل. سيتم إعادة تحميل الصفحة.');
                 location.reload();
             }
