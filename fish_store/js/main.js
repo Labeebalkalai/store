@@ -1281,41 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mPassInput) mPassInput.value = localStorage.getItem('manager_password') || 'admin';
     if (kPassInput) kPassInput.value = localStorage.getItem('keeper_password') || '1234';
 
-    if (saveAllBtn) {
-        saveAllBtn.addEventListener('click', () => {
-            const currentMPass = localStorage.getItem('manager_password') || 'admin';
-            const currentKPass = localStorage.getItem('keeper_password') || '1234';
 
-            const oldMPassInput = document.getElementById('old-manager-pass').value;
-            const oldKPassInput = document.getElementById('old-keeper-pass').value;
-            const newMPass = mPassInput.value.trim();
-            const newKPass = kPassInput.value.trim();
-            const newThreshold = thresholdInput.value;
-
-            // Check Manager Password Change
-            if (newMPass !== currentMPass) {
-                if (oldMPassInput !== currentMPass) { alert('كلمة مرور المدير الحالية غير صحيحة!'); return; }
-                localStorage.setItem('manager_password', newMPass);
-            }
-
-            // Check Keeper Password Change
-            if (newKPass !== currentKPass) {
-                if (oldKPassInput !== currentKPass) { alert('كلمة مرور الأمين الحالية غير صحيحة!'); return; }
-                localStorage.setItem('keeper_password', newKPass);
-            }
-
-            localStorage.setItem('lowStockThreshold', newThreshold);
-            lowStockThreshold = parseFloat(newThreshold);
-
-            // Clear password fields for security
-            document.getElementById('old-manager-pass').value = '';
-            document.getElementById('old-keeper-pass').value = '';
-            
-            alert('تم تحديث الإعدادات بنجاح!');
-            renderFridgeTable('fiber');
-            renderFridgeTable('shop');
-        });
-    }
 
 
     if (factoryResetBtn) {
@@ -1393,6 +1359,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             localStorage.setItem(localKey, newStr);
                             if (renderFn) renderFn();
                         }
+                    } else {
+                        // Handle empty/deleted database paths
+                        const oldStr = localStorage.getItem(localKey);
+                        if (oldStr && oldStr !== '[]' && oldStr !== '{}') {
+                            localStorage.setItem(localKey, '[]');
+                            if (renderFn) renderFn();
+                        }
                     }
                 }, (err) => {
                     console.error(`Firebase Error (${path}):`, err);
@@ -1427,6 +1400,62 @@ document.addEventListener('DOMContentLoaded', () => {
                                 loadScalePricesUI();
                             }
                         }
+                    }
+                }
+            });
+
+            // Sync settings
+            const settingsRef = db.ref('fish_settings');
+            settingsRef.once('value').then(snap => {
+                if (!snap.exists()) {
+                    const settingsData = {
+                        lowStockThreshold: localStorage.getItem('lowStockThreshold') || '10',
+                        manager_password: localStorage.getItem('manager_password') || 'admin',
+                        keeper_password: localStorage.getItem('keeper_password') || '1234',
+                        fs_store_name: localStorage.getItem('fs_store_name') || 'مطعم أمواج الصياد',
+                        fs_enable_sound: localStorage.getItem('fs_enable_sound') || 'true',
+                        fs_auto_backup: localStorage.getItem('fs_auto_backup') || 'false'
+                    };
+                    settingsRef.set(settingsData);
+                }
+            });
+            settingsRef.on('value', (snap) => {
+                if (snap.exists() && snap.val()) {
+                    const data = snap.val();
+                    if (data && typeof data === 'object') {
+                        if (data.lowStockThreshold !== undefined) {
+                            localStorage.setItem('lowStockThreshold', data.lowStockThreshold);
+                            lowStockThreshold = parseFloat(data.lowStockThreshold);
+                            const thresholdInput = document.getElementById('threshold-input');
+                            if (thresholdInput) thresholdInput.value = data.lowStockThreshold;
+                        }
+                        if (data.manager_password !== undefined) {
+                            localStorage.setItem('manager_password', data.manager_password);
+                            const mPassInput = document.getElementById('manager-pass-input');
+                            if (mPassInput) mPassInput.value = data.manager_password;
+                        }
+                        if (data.keeper_password !== undefined) {
+                            localStorage.setItem('keeper_password', data.keeper_password);
+                            const kPassInput = document.getElementById('keeper-pass-input');
+                            if (kPassInput) kPassInput.value = data.keeper_password;
+                        }
+                        if (data.fs_store_name !== undefined) {
+                            localStorage.setItem('fs_store_name', data.fs_store_name);
+                            const fsName = document.getElementById('fs-store-name');
+                            if (fsName) fsName.value = data.fs_store_name;
+                        }
+                        if (data.fs_enable_sound !== undefined) {
+                            localStorage.setItem('fs_enable_sound', data.fs_enable_sound);
+                            const fsSound = document.getElementById('fs-enable-sound');
+                            if (fsSound) fsSound.checked = (data.fs_enable_sound === 'true' || data.fs_enable_sound === true);
+                        }
+                        if (data.fs_auto_backup !== undefined) {
+                            localStorage.setItem('fs_auto_backup', data.fs_auto_backup);
+                            const fsAutoBackup = document.getElementById('fs-auto-backup');
+                            if (fsAutoBackup) fsAutoBackup.checked = (data.fs_auto_backup === 'true' || data.fs_auto_backup === true);
+                        }
+                        renderFridgeTable('fiber');
+                        renderFridgeTable('shop');
                     }
                 }
             });
@@ -1483,32 +1512,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSettingsBtn = document.getElementById('save-all-settings-btn');
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', () => {
+            const currentMPass = localStorage.getItem('manager_password') || 'admin';
+            const currentKPass = localStorage.getItem('keeper_password') || '1234';
+
+            const oldMPassInput = document.getElementById('old-manager-pass').value;
+            const oldKPassInput = document.getElementById('old-keeper-pass').value;
+            const newMPass = document.getElementById('manager-pass-input').value.trim();
+            const newKPass = document.getElementById('keeper-pass-input').value.trim();
             const thresh = parseFloat(document.getElementById('threshold-input')?.value || 10);
-            localStorage.setItem('lowStockThreshold', thresh);
-
-            const oMP = document.getElementById('old-manager-pass')?.value;
-            const nMP = document.getElementById('manager-pass-input')?.value;
-            const curMP = localStorage.getItem('manager_password') || 'admin';
-            if (oMP && nMP) {
-                if (oMP === curMP) { localStorage.setItem('manager_password', nMP); }
-                else { alert('كلمة مرور المدير القديمة خاطئة'); return; }
-            }
-
-            const oKP = document.getElementById('old-keeper-pass')?.value;
-            const nKP = document.getElementById('keeper-pass-input')?.value;
-            const curKP = localStorage.getItem('keeper_password') || '1234';
-            if (oKP && nKP) {
-                if (oKP === curKP) { localStorage.setItem('keeper_password', nKP); }
-                else { alert('كلمة مرور الأمين القديمة خاطئة'); return; }
-            }
-
-            const storeName = document.getElementById('fs-store-name')?.value.trim();
-            if(storeName) localStorage.setItem('fs_store_name', storeName);
-
+            const storeName = document.getElementById('fs-store-name')?.value.trim() || 'مطعم أمواج الصياد';
             const soundEnabled = document.getElementById('fs-enable-sound')?.checked;
-            localStorage.setItem('fs_enable_sound', soundEnabled);
-
             const autoBackup = document.getElementById('fs-auto-backup')?.checked;
+
+            // Check Manager Password Change
+            let finalMPass = currentMPass;
+            if (newMPass !== currentMPass) {
+                if (oldMPassInput !== currentMPass) { alert('كلمة مرور المدير الحالية غير صحيحة!'); return; }
+                finalMPass = newMPass;
+            }
+
+            // Check Keeper Password Change
+            let finalKPass = currentKPass;
+            if (newKPass !== currentKPass) {
+                if (oldKPassInput !== currentKPass) { alert('كلمة مرور الأمين الحالية غير صحيحة!'); return; }
+                finalKPass = newKPass;
+            }
+
+            // Save locally
+            localStorage.setItem('lowStockThreshold', thresh);
+            localStorage.setItem('manager_password', finalMPass);
+            localStorage.setItem('keeper_password', finalKPass);
+            localStorage.setItem('fs_store_name', storeName);
+            localStorage.setItem('fs_enable_sound', soundEnabled);
             localStorage.setItem('fs_auto_backup', autoBackup);
 
             // Save Scale Prices
@@ -1529,15 +1564,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('scale_barcode_mode', barcodeMode);
             }
             
+            // Clear old password fields for security
+            document.getElementById('old-manager-pass').value = '';
+            document.getElementById('old-keeper-pass').value = '';
+
             // Sync with Firebase if available
             if (typeof firebase !== 'undefined') {
                 try {
+                    const settingsData = {
+                        lowStockThreshold: thresh.toString(),
+                        manager_password: finalMPass,
+                        keeper_password: finalKPass,
+                        fs_store_name: storeName,
+                        fs_enable_sound: soundEnabled.toString(),
+                        fs_auto_backup: autoBackup.toString()
+                    };
+                    firebase.database().ref('fish_settings').set(settingsData);
                     firebase.database().ref('scale_item_prices').set(prices);
                 } catch(e) { console.error("Firebase save error:", e); }
             }
 
-            alert('تم حفظ جميع الإعدادات بنجاح!');
-
+            alert('تم حفظ جميع الإعدادات وتحديثها بنجاح!');
+            renderFridgeTable('fiber');
+            renderFridgeTable('shop');
         });
     }
 
