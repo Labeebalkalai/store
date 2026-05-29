@@ -1301,6 +1301,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pass !== mPass) { alert('كلمة مرور خاطئة! لا يمكن التهيئة.'); return; }
 
             if (confirm('تحذير نهائي: سيتم حذف كافة البيانات (المخزون، السجلات، الإعدادات). هل أنت متأكد تماماً؟')) {
+                if (db) {
+                    try {
+                        await db.ref('fiber_fridge_items').remove();
+                        await db.ref('shop_fridge_items').remove();
+                        await db.ref('transaction_logs').remove();
+                        await db.ref('scale_item_prices').remove();
+                        await db.ref('fish_settings').remove();
+                        console.log("Firebase cleared successfully during factory reset.");
+                    } catch (e) {
+                        console.error("Firebase clear error:", e);
+                    }
+                }
                 localStorage.clear();
                 alert('تمت تهيئة النظام بالكامل. سيتم إعادة تحميل الصفحة.');
                 location.reload();
