@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mPass = localStorage.getItem('manager_password') || 'admin';
             const kPass = localStorage.getItem('keeper_password') || '1234';
 
-            if (sectionId === 'manager') {
+            if (sectionId === 'manager' || sectionId === 'reports') {
                 const pass = await prompt('الرجاء إدخال كلمة مرور المدير:');
                 if (pass !== mPass) { alert('كلمة مرور خاطئة!'); return; }
             } else if (sectionId === 'fridge-keeper') {
@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sectionId === 'fiber-fridge') renderFridgeTable('fiber');
                 else if (sectionId === 'shop-fridge') renderFridgeTable('shop');
                 else if (sectionId === 'manager') renderLogs();
+                else if (sectionId === 'reports') renderMonthlyReport();
             }
         });
     });
@@ -232,9 +233,265 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addLog = (log) => { 
         let logs = getItems('transaction_logs'); 
+        log.timestamp = Date.now(); // automatic timestamp for new logs
         logs.unshift(log); 
         if (logs.length > 1000) logs.pop(); 
         saveItems(logs, 'transaction_logs'); 
+    };
+
+    // --- Arabic & Date Normalization Utilities ---
+    const toEnglishDigits = (str) => {
+        if (!str) return '';
+        const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        return str.toString().replace(/[٠-٩]/g, d => arabicDigits.indexOf(d));
+    };
+
+    // Um Al-Qura & Gregorian Hybrid Date Parser
+    const parseLogDateToGregorian = (logDateStr) => {
+        if (!logDateStr) return null;
+        const normalized = toEnglishDigits(logDateStr);
+        const match = normalized.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (!match) return null;
+        
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const year = parseInt(match[3], 10);
+        
+        if (year > 1600) {
+            // Gregorian Date Parsing
+            let hour = 12;
+            let minute = 0;
+            const timeMatch = normalized.match(/(\d{1,2}):(\d{1,2})\s*(م|ص|AM|PM)/i);
+            if (timeMatch) {
+                hour = parseInt(timeMatch[1], 10);
+                minute = parseInt(timeMatch[2], 10);
+                const ampm = timeMatch[3];
+                if ((ampm === 'م' || ampm.toUpperCase() === 'PM') && hour < 12) {
+                    hour += 12;
+                } else if ((ampm === 'ص' || ampm.toUpperCase() === 'AM') && hour === 12) {
+                    hour = 0;
+                }
+            }
+            return new Date(year, month - 1, day, hour, minute);
+        } else {
+            // Hijri Julian Day conversion (accurate Um Al-Qura approximation)
+            const jd = Math.floor((11 * year + 3) / 30) + 354 * year + 30 * month - Math.floor((month - 1) / 2) + day + 1948440 - 385;
+            const l = jd + 68569;
+            const n = Math.floor((4 * l) / 146097);
+            const l1 = l - Math.floor((146097 * n + 3) / 4);
+            const i = Math.floor((4000 * (l1 + 1)) / 1461001);
+            const l2 = l1 - Math.floor((1461 * i) / 4) + 31;
+            const j = Math.floor((80 * l2) / 2447);
+            const d = l2 - Math.floor((2447 * j) / 80);
+            const l3 = Math.floor(j / 11);
+            const m = j + 2 - 12 * l3;
+            const y = 100 * (n - 49) + i + l3;
+            return new Date(y, m - 1, d, 12, 0);
+        }
+    };
+
+    const getLogMonthYear = (logDateStr) => {
+        if (!logDateStr) return null;
+        const normalized = toEnglishDigits(logDateStr);
+        const match = normalized.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (match) {
+            const mm = match[2].padStart(2, '0');
+            const yyyy = match[3];
+            return `${mm}/${yyyy}`; // e.g. "05/2026" or "10/1447"
+        }
+        return null;
+    };
+
+    const getPreviousMonthYear = (currentMonthYearStr) => {
+        const parts = currentMonthYearStr.split('/');
+        let mm = parseInt(parts[0], 10);
+        let yyyy = parseInt(parts[1], 10);
+        
+        mm--;
+        if (mm === 0) {
+            mm = 12;
+            yyyy--;
+        }
+        return `${mm.toString().padStart(2, '0')}/${yyyy}`;
+    };
+
+    // Upgrade historical logs on startup
+    const upgradeLogs = () => {
+        let logs = getItems('transaction_logs');
+        let updated = false;
+        logs.forEach(l => {
+            if (!l.timestamp) {
+                const gDate = parseLogDateToGregorian(l.date);
+                l.timestamp = gDate ? gDate.getTime() : Date.now();
+                updated = true;
+            }
+        });
+        if (updated) {
+            saveItems(logs, 'transaction_logs');
+        }
+    };
+
+    // Core Aggregation Engine for Itemized Monthly Report
+    const renderMonthlyReport = () => {
+        const body = document.getElementById('monthly-report-table-body');
+        if (!body) return;
+        
+        const period = document.getElementById('monthly-report-period')?.value || 'today';
+        const customStartStr = document.getElementById('monthly-report-start-date')?.value || '';
+        const customEndStr = document.getElementById('monthly-report-end-date')?.value || '';
+        
+        let logs = getItems('transaction_logs');
+        
+        let filterStart = null;
+        let filterEnd = null;
+        const now = new Date();
+        
+        if (period === 'today') {
+            filterStart = new Date(now);
+            filterStart.setHours(0, 0, 0, 0); // start of today (00:00:00)
+        } else if (period === '30days') {
+            filterStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        } else if (period === 'current-month') {
+            const currentMY = getLogMonthYear(getCurrentDateTime());
+            if (currentMY) {
+                logs = logs.filter(l => getLogMonthYear(l.date) === currentMY);
+            }
+        } else if (period === 'prev-month') {
+            const currentMY = getLogMonthYear(getCurrentDateTime());
+            if (currentMY) {
+                const prevMY = getPreviousMonthYear(currentMY);
+                logs = logs.filter(l => getLogMonthYear(l.date) === prevMY);
+            }
+        } else if (period === 'custom') {
+            if (customStartStr) {
+                filterStart = new Date(customStartStr);
+                filterStart.setHours(0, 0, 0, 0);
+            }
+            if (customEndStr) {
+                filterEnd = new Date(customEndStr);
+                filterEnd.setHours(23, 59, 59, 999);
+            }
+        }
+        
+        // Filter by numerical timestamp
+        if (filterStart || filterEnd) {
+            logs = logs.filter(l => {
+                const t = l.timestamp || (l.date ? parseLogDateToGregorian(l.date)?.getTime() : null);
+                if (!t) return false;
+                if (filterStart && t < filterStart.getTime()) return false;
+                if (filterEnd && t > filterEnd.getTime()) return false;
+                return true;
+            });
+        }
+        
+        // Group by item name
+        const reportData = {};
+        
+        // Pre-populate report with all standard scale items
+        Object.keys(SCALE_ITEMS).forEach(id => {
+            reportData[SCALE_ITEMS[id]] = {
+                id: id.padStart(3, '0'),
+                name: SCALE_ITEMS[id],
+                purchase: { weight: 0, price: 0 },
+                sales: { weight: 0, price: 0 },
+                return: { weight: 0, price: 0 },
+                damaged: { weight: 0, price: 0 }
+            };
+        });
+        
+        let monthlyStats = { 
+            purchase: { w: 0, p: 0 }, 
+            sales: { w: 0, p: 0 }, 
+            return: { w: 0, p: 0 }, 
+            damaged: { w: 0, p: 0 } 
+        };
+        
+        logs.forEach(l => {
+            if (l.type === 'transfer') return; // Skip transfers in financial summaries
+            
+            const w = parseFloat(l.weight) || 0;
+            const p = parseFloat(l.price) || 0;
+            const name = l.name || '';
+            const type = l.type;
+            
+            if (!name || !type) return;
+            
+            if (!reportData[name]) {
+                reportData[name] = {
+                    id: '-',
+                    name: name,
+                    purchase: { weight: 0, price: 0 },
+                    sales: { weight: 0, price: 0 },
+                    return: { weight: 0, price: 0 },
+                    damaged: { weight: 0, price: 0 }
+                };
+            }
+            
+            if (reportData[name][type]) {
+                reportData[name][type].weight += w;
+                reportData[name][type].price += p;
+            }
+            
+            if (monthlyStats[type]) {
+                monthlyStats[type].w += w;
+                monthlyStats[type].p += p;
+            }
+        });
+        
+        // Update summary cards
+        document.getElementById('monthly-total-purchase-weight').textContent = `${monthlyStats.purchase.w.toFixed(3)} كجم`;
+        document.getElementById('monthly-total-purchase-price').textContent = `${monthlyStats.purchase.p.toLocaleString('ar-SA')} ر.س`;
+        
+        document.getElementById('monthly-total-sales-weight').textContent = `${monthlyStats.sales.w.toFixed(3)} كجم`;
+        document.getElementById('monthly-total-sales-price').textContent = `${monthlyStats.sales.p.toLocaleString('ar-SA')} ر.س`;
+        
+        document.getElementById('monthly-total-return-weight').textContent = `${monthlyStats.return.w.toFixed(3)} كجم`;
+        document.getElementById('monthly-total-return-price').textContent = `${monthlyStats.return.p.toLocaleString('ar-SA')} ر.س`;
+        
+        document.getElementById('monthly-total-damaged-weight').textContent = `${monthlyStats.damaged.w.toFixed(3)} كجم`;
+        document.getElementById('monthly-total-damaged-price').textContent = `${monthlyStats.damaged.p.toLocaleString('ar-SA')} ر.س`;
+        
+        // Generate list, keep items with activity or pre-defined PLUs
+        const itemsList = Object.values(reportData).filter(item => {
+            const hasActivity = (item.purchase.weight > 0 || item.sales.weight > 0 || item.return.weight > 0 || item.damaged.weight > 0);
+            const isScaleItem = SCALE_ITEMS[parseInt(item.id, 10)] !== undefined;
+            return hasActivity || isScaleItem;
+        });
+        
+        itemsList.sort((a, b) => {
+            const numA = parseInt(a.id, 10) || 9999;
+            const numB = parseInt(b.id, 10) || 9999;
+            return numA - numB;
+        });
+        
+        body.innerHTML = '';
+        
+        if (itemsList.length === 0) {
+            body.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2rem;">لا توجد عمليات مسجلة في هذه الفترة</td></tr>`;
+            return;
+        }
+        
+        itemsList.forEach(item => {
+            const row = document.createElement('tr');
+            row.style.animation = 'slideInRight 0.3s ease-out both';
+            row.innerHTML = `
+                <td style="font-weight: bold; color: var(--text-muted);">${item.id}</td>
+                <td style="font-weight: bold; color: white;">${item.name}</td>
+                
+                <td style="color: #10b981; font-weight: 600; background: rgba(16, 185, 129, 0.01);">${item.purchase.weight > 0 ? item.purchase.weight.toFixed(3) : '-'}</td>
+                <td style="color: #10b981; background: rgba(16, 185, 129, 0.01);">${item.purchase.price > 0 ? item.purchase.price.toFixed(2) : '-'}</td>
+                
+                <td style="color: #3b82f6; font-weight: 600; background: rgba(59, 130, 246, 0.01);">${item.sales.weight > 0 ? item.sales.weight.toFixed(3) : '-'}</td>
+                <td style="color: #3b82f6; background: rgba(59, 130, 246, 0.01);">${item.sales.price > 0 ? item.sales.price.toFixed(2) : '-'}</td>
+                
+                <td style="color: #f59e0b; font-weight: 600; background: rgba(245, 158, 11, 0.01);">${item.return.weight > 0 ? item.return.weight.toFixed(3) : '-'}</td>
+                <td style="color: #f59e0b; background: rgba(245, 158, 11, 0.01);">${item.return.price > 0 ? item.return.price.toFixed(2) : '-'}</td>
+                
+                <td style="color: #ef4444; font-weight: 600; background: rgba(239, 68, 68, 0.01);">${item.damaged.weight > 0 ? item.damaged.weight.toFixed(3) : '-'}</td>
+                <td style="color: #ef4444; background: rgba(239, 68, 68, 0.01);">${item.damaged.price > 0 ? item.damaged.price.toFixed(2) : '-'}</td>
+            `;
+            body.appendChild(row);
+        });
     };
 
     const renderLogs = () => {
@@ -257,7 +514,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         body.innerHTML = '';
-        // Render only the top 150 matching logs to keep UI incredibly fast
         const logsToShow = filteredLogs.slice(0, 150);
         logsToShow.forEach(log => {
             const row = document.createElement('tr');
@@ -280,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         renderManagerStats(logs);
+        renderMonthlyReport(); // Auto-render monthly report in sync with general logs updates
     };
 
     const renderManagerStats = (logs) => {
@@ -290,10 +547,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        document.getElementById('stats-total-purchase').textContent = `${stats.purchase.toLocaleString()} ر.س`;
-        document.getElementById('stats-total-sales').textContent = `${stats.sales.toLocaleString()} ر.س`;
-        document.getElementById('stats-total-return').textContent = `${stats.return.toLocaleString()} ر.س`;
-        document.getElementById('stats-total-damaged').textContent = `${stats.damaged.toLocaleString()} ر.س`;
+        const pEl = document.getElementById('stats-total-purchase');
+        const sEl = document.getElementById('stats-total-sales');
+        const rEl = document.getElementById('stats-total-return');
+        const dEl = document.getElementById('stats-total-damaged');
+
+        if (pEl) pEl.textContent = `${stats.purchase.toLocaleString()} ر.س`;
+        if (sEl) sEl.textContent = `${stats.sales.toLocaleString()} ر.س`;
+        if (rEl) rEl.textContent = `${stats.return.toLocaleString()} ر.س`;
+        if (dEl) dEl.textContent = `${stats.damaged.toLocaleString()} ر.س`;
     };
 
     const renderFridgeTable = (type) => {
@@ -1147,6 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reportTitleEl) {
             const titles = {
                 'manager': 'تقرير العمليات والسجلات الإدارية الشامل',
+                'reports': 'تقرير حركة الأصناف الشامل',
                 'fiber-fridge': 'تقرير جرد مخزون ثلاجة الفيبر',
                 'shop-fridge': 'تقرير جرد مخزون ثلاجة المحل'
             };
@@ -1633,6 +1896,104 @@ document.addEventListener('DOMContentLoaded', () => {
         fsBarcodeModeEl.value = fsBarcodeMode || ''; // '' = auto-detect
     }
 
+
+    // Upgrade logs database and populate initial values
+    upgradeLogs();
+
+    // Hook up Monthly Report Event Listeners
+    const monthlyReportPeriod = document.getElementById('monthly-report-period');
+    const customDatesDiv = document.getElementById('monthly-report-custom-dates');
+    if (monthlyReportPeriod) {
+        monthlyReportPeriod.addEventListener('change', () => {
+            if (monthlyReportPeriod.value === 'custom') {
+                customDatesDiv.style.display = 'flex';
+            } else {
+                customDatesDiv.style.display = 'none';
+                renderMonthlyReport();
+            }
+        });
+    }
+    
+    document.getElementById('monthly-report-start-date')?.addEventListener('change', renderMonthlyReport);
+    document.getElementById('monthly-report-end-date')?.addEventListener('change', renderMonthlyReport);
+    
+    // Bind Export Button
+    const exportMonthlyBtn = document.getElementById('export-monthly-report-btn');
+    if (exportMonthlyBtn) {
+        exportMonthlyBtn.addEventListener('click', () => {
+            const period = document.getElementById('monthly-report-period')?.value || '30days';
+            exportMonthlyBtn.style.opacity = '0.5';
+            exportMonthlyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التصدير...';
+            
+            setTimeout(() => {
+                const rows = document.querySelectorAll('#monthly-report-table-body tr');
+                if (rows.length === 0 || rows[0].querySelector('td[colspan]')) {
+                    alert('لا توجد بيانات لتصديرها في هذه الفترة');
+                    exportMonthlyBtn.style.opacity = '1';
+                    exportMonthlyBtn.innerHTML = '<i class="fas fa-file-excel"></i> <span>تصدير Excel</span>';
+                    return;
+                }
+                
+                let csv = '\uFEFFرقم الصنف,اسم الصنف,مشتريات وزن (كجم),مشتريات سعر (ر.س),مبيعات وزن (كجم),مبيعات سعر (ر.س),مرتجع وزن (كجم),مرتجع سعر (ر.س),تالف وزن (كجم),تالف سعر (ر.س)\n';
+                
+                rows.forEach(r => {
+                    const id = r.cells[0]?.textContent.trim() || '';
+                    const name = r.cells[1]?.textContent.trim() || '';
+                    const pw = r.cells[2]?.textContent.trim().replace('-', '0') || '0';
+                    const pp = r.cells[3]?.textContent.trim().replace('-', '0') || '0';
+                    const sw = r.cells[4]?.textContent.trim().replace('-', '0') || '0';
+                    const sp = r.cells[5]?.textContent.trim().replace('-', '0') || '0';
+                    const rw = r.cells[6]?.textContent.trim().replace('-', '0') || '0';
+                    const rp = r.cells[7]?.textContent.trim().replace('-', '0') || '0';
+                    const dw = r.cells[8]?.textContent.trim().replace('-', '0') || '0';
+                    const dp = r.cells[9]?.textContent.trim().replace('-', '0') || '0';
+                    
+                    csv += `"${id}","${name}",${pw},${pp},${sw},${sp},${rw},${rp},${dw},${dp}\n`;
+                });
+                
+                const storeName = localStorage.getItem('fs_store_name') || 'أمواج_الصياد';
+                const sanitizedName = storeName.replace(/\s+/g, '_');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `تقرير_الأصناف_الشهري_${sanitizedName}_${period}_${new Date().toLocaleDateString('ar-SA')}.csv`);
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                exportMonthlyBtn.style.opacity = '1';
+                exportMonthlyBtn.innerHTML = '<i class="fas fa-file-excel"></i> <span>تصدير Excel</span>';
+                alert('تم تصدير ملف Excel بنجاح ✓');
+            }, 400);
+        });
+    }
+
+    // Bind Print Button
+    const printMonthlyBtn = document.getElementById('print-monthly-report-btn');
+    if (printMonthlyBtn) {
+        printMonthlyBtn.addEventListener('click', () => {
+            document.body.classList.add('print-monthly-report-only');
+            
+            const reportTitleEl = document.querySelector('.print-only-header h1 + p');
+            const originalTitleText = reportTitleEl ? reportTitleEl.textContent : 'تقرير إداري معتمد';
+            
+            if (reportTitleEl) {
+                const periodText = document.getElementById('monthly-report-period')?.options[document.getElementById('monthly-report-period').selectedIndex]?.text || '';
+                reportTitleEl.textContent = `تقرير حركة الأصناف الشامل (${periodText})`;
+            }
+            
+            triggerPrint('reports');
+            
+            setTimeout(() => {
+                document.body.classList.remove('print-monthly-report-only');
+                if (reportTitleEl) {
+                    reportTitleEl.textContent = originalTitleText;
+                }
+            }, 1500);
+        });
+    }
 
     // Initial load
     renderFridgeTable('fiber'); renderFridgeTable('shop'); renderLogs(); ensureOneRow();
